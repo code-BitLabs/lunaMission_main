@@ -1,0 +1,82 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "name": "LunaMission Scientific Observatory",
+  "version": "1.0.0-proposed",
+  "description": "Framework-neutral mirror of DESIGN.md tokens. DESIGN.md owns the visual rationale.",
+  "color": {
+    "canvas": "#070B12",
+    "surface": "#0C1320",
+    "surfaceRaised": "#111C2B",
+    "surfaceStrong": "#172438",
+    "border": "#26364A",
+    "borderSubtle": "#1B293B",
+    "textPrimary": "#F2F6FC",
+    "textSecondary": "#B5C2D3",
+    "textMuted": "#8191A7",
+    "textDisabled": "#58677B",
+    "sun": "#F3CC70",
+    "earth": "#8CCBFF",
+    "selectedSite": "#70D6C5",
+    "focus": "#A6D9FF",
+    "success": "#83D6AA",
+    "warning": "#F2C66D",
+    "danger": "#FF928C",
+    "info": "#8CCBFF",
+    "dataDemo": "#C3A6FF"
+  },
+  "fontFamily": {
+    "sans": "Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+    "mono": "IBM Plex Mono, SFMono-Regular, Consolas, Liberation Mono, monospace"
+  },
+  "fontSize": {
+    "xs": "0.75rem",
+    "sm": "0.8125rem",
+    "md": "0.9375rem",
+    "lg": "1rem",
+    "heading3": "1rem",
+    "heading2": "1.25rem",
+    "heading1": "1.75rem",
+    "display": "2.25rem"
+  },
+  "spacing": {
+    "0": "0",
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "5": "20px",
+    "6": "24px",
+    "8": "32px",
+    "10": "40px",
+    "12": "48px",
+    "16": "64px"
+  },
+  "radius": {
+    "none": "0px",
+    "xs": "4px",
+    "sm": "7px",
+    "md": "10px",
+    "lg": "14px",
+    "xl": "18px",
+    "pill": "999px"
+  },
+  "elevation": {
+    "popover": "0 10px 28px rgb(0 0 0 / 0.24)",
+    "focusRing": "0 0 0 3px rgb(166 217 255 / 0.38)"
+  },
+  "layout": {
+    "pageMaxWidth": "1600px",
+    "pageGutterDesktop": "24px",
+    "pageGutterTablet": "20px",
+    "pageGutterMobile": "16px"
+  },
+  "semanticUsage": {
+    "sun": "Sun direction, illumination cues and Sun chart series",
+    "earth": "Earth direction and Earth chart series",
+    "selectedSite": "Selected candidate location",
+    "dataDemo": "Illustrative/demo data only, never a scientific status",
+    "success": "Application state only; not mission suitability",
+    "warning": "Application caution/qualification; not an implicit failure probability",
+    "danger": "Real UI or calculation error; not decoration"
+  }
+}

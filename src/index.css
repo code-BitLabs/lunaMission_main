@@ -1,0 +1,75 @@
+@import "tailwindcss";
+@import "./tokens/design-tokens.css";
+
+@layer base {
+  html {
+    background-color: var(--lm-color-canvas);
+    color: var(--lm-color-text-primary);
+    font-family: var(--lm-font-sans);
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--lm-color-canvas);
+    color: var(--lm-color-text-primary);
+    font-family: var(--lm-font-sans);
+    font-size: var(--lm-text-md);
+    line-height: 1.55;
+    font-feature-settings: "tnum" 1;
+    overflow-x: hidden;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--lm-color-focus);
+    outline-offset: 2px;
+    box-shadow: var(--lm-focus-ring);
+  }
+
+  /* Custom scrollbar matching dark observatory theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--lm-color-surface);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--lm-color-border);
+    border-radius: var(--lm-radius-pill);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--lm-color-text-disabled);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Custom utility classes referencing design tokens */
+.font-mono-num {
+  font-family: var(--lm-font-mono);
+  font-feature-settings: "tnum" 1;
+}
+
+.surface-card {
+  background-color: var(--lm-color-surface);
+  border: 1px solid var(--lm-color-border-subtle);
+  border-radius: var(--lm-radius-lg);
+}
+
+.surface-raised {
+  background-color: var(--lm-color-surface-raised);
+  border: 1px solid var(--lm-color-border);
+  border-radius: var(--lm-radius-md);
+}
+
+.surface-strong {
+  background-color: var(--lm-color-surface-strong);
+  border: 1px solid var(--lm-color-border);
+}

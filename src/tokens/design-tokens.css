@@ -1,0 +1,67 @@
+/* LunaMission design tokens — framework-neutral CSS variables matching DESIGN.md */
+:root {
+  color-scheme: dark;
+  --lm-color-canvas: #070B12;
+  --lm-color-surface: #0C1320;
+  --lm-color-surface-raised: #111C2B;
+  --lm-color-surface-strong: #172438;
+  --lm-color-border: #26364A;
+  --lm-color-border-subtle: #1B293B;
+  --lm-color-text-primary: #F2F6FC;
+  --lm-color-text-secondary: #B5C2D3;
+  --lm-color-text-muted: #8191A7;
+  --lm-color-text-disabled: #58677B;
+  --lm-color-sun: #F3CC70;
+  --lm-color-earth: #8CCBFF;
+  --lm-color-selected-site: #70D6C5;
+  --lm-color-focus: #A6D9FF;
+  --lm-color-success: #83D6AA;
+  --lm-color-warning: #F2C66D;
+  --lm-color-danger: #FF928C;
+  --lm-color-info: #8CCBFF;
+  --lm-color-data-demo: #C3A6FF;
+
+  --lm-font-sans: Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --lm-font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --lm-text-xs: 0.75rem;
+  --lm-text-sm: 0.8125rem;
+  --lm-text-md: 0.9375rem;
+  --lm-text-lg: 1rem;
+  --lm-heading-3: 1rem;
+  --lm-heading-2: 1.25rem;
+  --lm-heading-1: 1.75rem;
+  --lm-display: 2.25rem;
+
+  --lm-space-0: 0;
+  --lm-space-1: 4px;
+  --lm-space-2: 8px;
+  --lm-space-3: 12px;
+  --lm-space-4: 16px;
+  --lm-space-5: 20px;
+  --lm-space-6: 24px;
+  --lm-space-8: 32px;
+  --lm-space-10: 40px;
+  --lm-space-12: 48px;
+  --lm-space-16: 64px;
+
+  --lm-radius-none: 0px;
+  --lm-radius-xs: 4px;
+  --lm-radius-sm: 7px;
+  --lm-radius-md: 10px;
+  --lm-radius-lg: 14px;
+  --lm-radius-xl: 18px;
+  --lm-radius-pill: 999px;
+
+  --lm-shadow-popover: 0 10px 28px rgb(0 0 0 / 0.45);
+  --lm-focus-ring: 0 0 0 3px rgb(166 217 255 / 0.38);
+  --lm-page-max-width: 1600px;
+  --lm-page-gutter: 24px;
+}
+
+@media (max-width: 1023px) {
+  :root { --lm-page-gutter: 20px; }
+}
+@media (max-width: 767px) {
+  :root { --lm-page-gutter: 16px; }
+}
