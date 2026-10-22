@@ -148,7 +148,7 @@ export function UtcTimeControl({ currentIsoUtc, onEpochChange, compact = false }
             onClick={() => handleStep(-10)}
             title="Step back 10 minutes"
             aria-label="Step back 10 minutes (UTC)"
-            className="px-1.5 py-1 text-xs font-mono-num rounded-[var(--lm-radius-xs)] bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-strong)] transition-colors"
+            className="hidden sm:inline-block px-1.5 py-1 text-xs font-mono-num rounded-[var(--lm-radius-xs)] bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-strong)] transition-colors"
           >
             -10m
           </button>
@@ -157,7 +157,7 @@ export function UtcTimeControl({ currentIsoUtc, onEpochChange, compact = false }
             onClick={() => handleStep(10)}
             title="Step forward 10 minutes"
             aria-label="Step forward 10 minutes (UTC)"
-            className="px-1.5 py-1 text-xs font-mono-num rounded-[var(--lm-radius-xs)] bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-strong)] transition-colors"
+            className="hidden sm:inline-block px-1.5 py-1 text-xs font-mono-num rounded-[var(--lm-radius-xs)] bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-strong)] transition-colors"
           >
             +10m
           </button>
@@ -172,8 +172,8 @@ export function UtcTimeControl({ currentIsoUtc, onEpochChange, compact = false }
           </button>
         </div>
 
-        {/* Presets dropdown */}
-        <div className="flex items-center gap-1.5">
+        {/* Presets dropdown (hidden on mobile to preserve vertical budget) */}
+        <div className="hidden sm:flex items-center gap-1.5">
           <label htmlFor="mission-presets-select" className="sr-only">Mission Preset Epochs</label>
           <select
             id="mission-presets-select"

@@ -48,44 +48,51 @@ export function Header({
             </div>
 
             {/* Nav Tabs */}
-            <nav className="flex items-center gap-1 bg-[var(--lm-color-canvas)] p-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border-subtle)]" aria-label="Main Navigation">
+            <nav className="flex items-center gap-1 bg-[var(--lm-color-canvas)] p-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border-subtle)] shrink-0" aria-label="Main Navigation">
               <button
                 type="button"
                 onClick={() => onTabChange('explore')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs sm:text-sm font-medium rounded-[var(--lm-radius-xs)] transition-colors ${
+                aria-label="Explore Observatory"
+                title="Explore Observatory"
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-[var(--lm-radius-xs)] transition-colors ${
                   activeTab === 'explore'
                     ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-primary)] border border-[var(--lm-color-border)] shadow-xs'
                     : 'text-[var(--lm-color-text-muted)] hover:text-[var(--lm-color-text-secondary)]'
                 }`}
               >
-                <Compass className="w-3.5 h-3.5" />
-                <span>Explore</span>
+                <Compass className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Explore</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onTabChange('compare')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs sm:text-sm font-medium rounded-[var(--lm-radius-xs)] transition-colors ${
+                aria-label="Compare Candidates"
+                title="Compare Candidates"
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-[var(--lm-radius-xs)] transition-colors ${
                   activeTab === 'compare'
                     ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-primary)] border border-[var(--lm-color-border)] shadow-xs'
                     : 'text-[var(--lm-color-text-muted)] hover:text-[var(--lm-color-text-secondary)]'
                 }`}
               >
-                <GitCompare className="w-3.5 h-3.5" />
-                <span>Compare</span>
+                <GitCompare className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Compare</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onTabChange('method')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs sm:text-sm font-medium rounded-[var(--lm-radius-xs)] transition-colors ${
+                aria-label="Method & Data Reference"
+                title="Method & Data Reference"
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-[var(--lm-radius-xs)] transition-colors ${
                   activeTab === 'method'
                     ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-primary)] border border-[var(--lm-color-border)] shadow-xs'
                     : 'text-[var(--lm-color-text-muted)] hover:text-[var(--lm-color-text-secondary)]'
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Method & Data</span>
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Method</span>
+                <span className="hidden md:inline"> & Data</span>
               </button>
             </nav>
           </div>

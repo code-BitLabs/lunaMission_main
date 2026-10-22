@@ -161,13 +161,16 @@ export function SpatialWorkspace({
             sunElevationDeg={sunElevationDeg}
             subEarthLonDeg={subEarthLonDeg}
             subEarthLatDeg={subEarthLatDeg}
+            subSolarLatDeg={subSolarLatDeg}
+            subSolarLonDeg={subSolarLonDeg}
+            currentIsoUtc={currentIsoUtc}
             showGrid={showGrid}
             showPsr={showPsr}
             showVectors={showVectors}
             onToggleGrid={() => setShowGrid((v) => !v)}
             onTogglePsr={() => setShowPsr((v) => !v)}
             onToggleVectors={() => setShowVectors((v) => !v)}
-            hideHeader={true}
+            hideHeader={false}
             hideRibbon={true}
           />
         </div>
@@ -220,6 +223,9 @@ export function SpatialWorkspace({
                 sunElevationDeg={sunElevationDeg}
                 subEarthLonDeg={subEarthLonDeg}
                 subEarthLatDeg={subEarthLatDeg}
+                subSolarLatDeg={subSolarLatDeg}
+                subSolarLonDeg={subSolarLonDeg}
+                currentIsoUtc={currentIsoUtc}
                 showGrid={showGrid}
                 showPsr={showPsr}
                 showVectors={showVectors}
