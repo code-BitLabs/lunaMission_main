@@ -539,6 +539,7 @@ export function SpatialWorkspace({
                 calculationMode={calculationMode}
                 onCalculationModeChange={onCalculationModeChange}
                 onOpenMethodDetails={onOpenMethodDetails}
+                currentIsoUtc={currentIsoUtc}
               />
             </aside>
           )}
@@ -592,6 +593,7 @@ export function SpatialWorkspace({
             calculationMode={calculationMode}
             onCalculationModeChange={onCalculationModeChange}
             onOpenMethodDetails={onOpenMethodDetails}
+            currentIsoUtc={currentIsoUtc}
           />
         </div>
       </div>

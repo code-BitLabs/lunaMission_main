@@ -24,6 +24,7 @@ interface PointPassportProps {
   calculationMode: CalculationMode;
   onCalculationModeChange: (mode: CalculationMode) => void;
   onOpenMethodDetails: () => void;
+  currentIsoUtc?: string;
 }
 
 export function PointPassport({
@@ -32,6 +33,7 @@ export function PointPassport({
   calculationMode,
   onCalculationModeChange,
   onOpenMethodDetails,
+  currentIsoUtc,
 }: PointPassportProps) {
   const [showSunExplanation, setShowSunExplanation] = useState(false);
   const [showEarthExplanation, setShowEarthExplanation] = useState(false);
@@ -254,6 +256,8 @@ export function PointPassport({
       {/* Local Sky Cross-Section Diagram */}
       <section>
         <LocalSkyDiagram
+          site={site}
+          currentIsoUtc={currentIsoUtc}
           sunElevationDeg={sunElevVal}
           sunAzimuthDeg={sunAzVal}
           earthElevationDeg={earthElevVal}

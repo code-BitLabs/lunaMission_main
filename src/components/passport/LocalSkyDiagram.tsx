@@ -1,9 +1,14 @@
-import React from 'react';
-import { Sun, Globe as EarthIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sun, Globe as EarthIcon, ShieldCheck, AlertTriangle, Maximize2, X, Info } from 'lucide-react';
+import { CandidateSite } from '../../types/site';
 import { CalculationMode } from '../../types/celestial';
+import { CANDIDATE_SITES } from '../../lib/sites-data';
 import { formatNumber, formatAngle, formatDuration } from '../../lib/formatters';
+import { LocalSkyInspectorModal } from './LocalSkyInspectorModal';
 
 interface LocalSkyDiagramProps {
+  site?: CandidateSite;
+  currentIsoUtc?: string;
   sunElevationDeg: number;
   sunAzimuthDeg: number;
   earthElevationDeg: number;
@@ -19,6 +24,8 @@ interface LocalSkyDiagramProps {
 }
 
 export function LocalSkyDiagram({
+  site,
+  currentIsoUtc = '2026-10-21T12:00:00Z',
   sunElevationDeg,
   sunAzimuthDeg,
   earthElevationDeg,
@@ -32,9 +39,14 @@ export function LocalSkyDiagram({
   earthRangeKm = 390853,
   lightTimeSeconds = 1.304,
 }: LocalSkyDiagramProps) {
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [selectedMarker, setSelectedMarker] = useState<'sun' | 'earth' | null>(null);
+
+  const activeSite = site || CANDIDATE_SITES[0];
+
   // Chart Coordinate Frame: Topocentric Horizon (Azimuth: 0° to 360°, Elevation: -6° to +22°)
   const viewBoxW = 560;
-  const viewBoxH = 150;
+  const viewBoxH = 160;
   const padLeft = 45;
   const padRight = 20;
   const padTop = 15;
@@ -87,7 +99,7 @@ export function LocalSkyDiagram({
   const terrainPath = `${terrainPoints.join(' ')} L ${padLeft + chartW} ${padTop + chartH} L ${padLeft} ${padTop + chartH} Z`;
 
   return (
-    <div className="bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] rounded-[var(--lm-radius-sm)] p-3.5 flex flex-col gap-3">
+    <div className="bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] rounded-[var(--lm-radius-sm)] p-3.5 flex flex-col gap-3 relative">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--lm-color-border-subtle)] pb-2">
         <div>
@@ -104,10 +116,69 @@ export function LocalSkyDiagram({
           </div>
         </div>
 
-        <span className="text-[10px] font-mono text-[var(--lm-color-selected-site)] bg-[var(--lm-color-surface-strong)] px-2 py-0.5 rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-selected-site)]/40">
-          {calculationMode === 'terrain-aware' ? 'Terrain-Aware DEM' : 'Geometry-Only Spherical'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono text-[var(--lm-color-selected-site)] bg-[var(--lm-color-surface-strong)] px-2 py-0.5 rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-selected-site)]/40 hidden sm:inline">
+            {calculationMode === 'terrain-aware' ? 'Terrain-Aware DEM' : 'Geometry-Only Spherical'}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setIsInspectorOpen(true)}
+            title="Open Dedicated Fullscreen/Expanded Inspector"
+            aria-label="Expand graph into detailed inspector"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-medium rounded-[var(--lm-radius-xs)] bg-[var(--lm-color-surface-strong)] border border-[var(--lm-color-selected-site)]/60 text-[var(--lm-color-selected-site)] hover:bg-[var(--lm-color-selected-site)]/20 transition-colors shadow-xs"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span>Expand graph</span>
+          </button>
+        </div>
       </div>
+
+      {/* Popover for clicked Sun or Earth marker */}
+      {selectedMarker && (
+        <div className="absolute top-14 right-4 z-20 w-72 bg-[var(--lm-color-surface-strong)] border border-[var(--lm-color-selected-site)] rounded-[var(--lm-radius-sm)] p-3 shadow-xl text-xs font-mono-num backdrop-blur-sm animate-in fade-in">
+          <div className="flex items-center justify-between pb-1.5 border-b border-[var(--lm-color-border-subtle)] mb-2 font-semibold text-[var(--lm-color-selected-site)]">
+            <span className="flex items-center gap-1">
+              {selectedMarker === 'sun' ? <Sun className="w-3.5 h-3.5 text-[var(--lm-color-sun)]" /> : <EarthIcon className="w-3.5 h-3.5 text-[var(--lm-color-earth)]" />}
+              <span>{selectedMarker === 'sun' ? 'Sun Marker Details' : 'Earth Marker Details'}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedMarker(null)}
+              className="text-[var(--lm-color-text-muted)] hover:text-white p-0.5"
+              aria-label="Close details"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="space-y-1 text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Elevation:</span>
+              <span className={selectedMarker === 'sun' ? 'text-[var(--lm-color-sun)] font-bold' : 'text-[var(--lm-color-earth)] font-bold'}>
+                {formatAngle(selectedMarker === 'sun' ? sunElevationDeg : earthElevationDeg, { decimals: 2, sign: true })}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Azimuth:</span>
+              <span className="text-[var(--lm-color-text-primary)]">
+                {formatAngle(selectedMarker === 'sun' ? sunAzimuthDeg : earthAzimuthDeg, { decimals: 1 })}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Terrain Horizon:</span>
+              <span className="text-[var(--lm-color-text-secondary)]">
+                {formatAngle(selectedMarker === 'sun' ? terrainElevationDeg : effectiveEarthTerrain, { decimals: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between pt-1 border-t border-[var(--lm-color-border-subtle)]">
+              <span className="text-[var(--lm-color-text-muted)]">Clearance:</span>
+              <span className={`font-semibold ${(selectedMarker === 'sun' ? sunClearance : earthClearance) > 0 ? 'text-[var(--lm-color-selected-site)]' : 'text-[var(--lm-color-danger)]'}`}>
+                {formatAngle(selectedMarker === 'sun' ? sunClearance : earthClearance, { decimals: 2, sign: true })}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SVG Azimuth-Elevation Chart */}
       <div className="w-full overflow-hidden bg-[var(--lm-color-canvas)] rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-border-subtle)] p-1">
@@ -226,10 +297,13 @@ export function LocalSkyDiagram({
             opacity="0.6"
           />
 
-          {/* Earth Disk Marker */}
-          <g>
-            <circle cx={earthX} cy={earthY} r="12" fill="url(#earth-glow)" />
-            <circle cx={earthX} cy={earthY} r="4.5" fill="#8ccbff" stroke="#ffffff" strokeWidth="1" />
+          {/* Earth Disk Marker (Clickable to inspect popover) */}
+          <g
+            className="cursor-pointer group"
+            onClick={() => setSelectedMarker('earth')}
+          >
+            <circle cx={earthX} cy={earthY} r="14" fill="url(#earth-glow)" />
+            <circle cx={earthX} cy={earthY} r={selectedMarker === 'earth' ? '6' : '4.5'} fill="#8ccbff" stroke="#ffffff" strokeWidth="1.5" />
             <text
               x={earthX > padLeft + chartW - 70 ? earthX - 8 : earthX + 8}
               y={earthY - 6}
@@ -255,10 +329,13 @@ export function LocalSkyDiagram({
             opacity="0.6"
           />
 
-          {/* Sun Disk Marker */}
-          <g>
-            <circle cx={sunX} cy={sunY} r="14" fill="url(#sun-glow)" />
-            <circle cx={sunX} cy={sunY} r="5" fill="#ffb830" stroke="#ffffff" strokeWidth="1" />
+          {/* Sun Disk Marker (Clickable to inspect popover) */}
+          <g
+            className="cursor-pointer group"
+            onClick={() => setSelectedMarker('sun')}
+          >
+            <circle cx={sunX} cy={sunY} r="16" fill="url(#sun-glow)" />
+            <circle cx={sunX} cy={sunY} r={selectedMarker === 'sun' ? '6.5' : '5'} fill="#ffb830" stroke="#ffffff" strokeWidth="1.5" />
             <text
               x={sunX > padLeft + chartW - 70 ? sunX - 8 : sunX + 8}
               y={sunY - 6}
@@ -386,6 +463,26 @@ export function LocalSkyDiagram({
           </tbody>
         </table>
       </div>
+
+      {/* Dedicated Expanded Inspector Modal */}
+      <LocalSkyInspectorModal
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
+        site={activeSite}
+        currentIsoUtc={currentIsoUtc}
+        sunElevationDeg={sunElevationDeg}
+        sunAzimuthDeg={sunAzimuthDeg}
+        earthElevationDeg={earthElevationDeg}
+        earthAzimuthDeg={earthAzimuthDeg}
+        terrainElevationDeg={terrainElevationDeg}
+        earthTerrainElevationDeg={earthTerrainElevationDeg}
+        calculationMode={calculationMode}
+        meanTerrainHorizonDeg={meanTerrainHorizonDeg}
+        maxTerrainObstructionDeg={maxTerrainObstructionDeg}
+        solarIlluminationFraction={solarIlluminationFraction}
+        earthRangeKm={earthRangeKm}
+        lightTimeSeconds={lightTimeSeconds}
+      />
     </div>
   );
 }
