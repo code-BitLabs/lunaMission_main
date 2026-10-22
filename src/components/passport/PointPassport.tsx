@@ -65,7 +65,7 @@ export function PointPassport({
       : 0;
 
   return (
-    <div className="flex flex-col gap-3.5 bg-[var(--lm-color-surface)] border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-lg)] p-4 sm:p-5 h-full overflow-y-auto">
+    <div className="flex flex-col gap-3.5 bg-[var(--lm-color-surface-raised)]/40 border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-md)] p-4 sm:p-5 w-full min-w-0">
       {/* Site Passport Header Block */}
       <div className="flex flex-col gap-2 pb-3.5 border-b border-[var(--lm-color-border-subtle)]">
         <div className="flex items-start justify-between gap-2">

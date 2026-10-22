@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Header, NavTab } from './components/layout/Header';
 import { SpatialWorkspace } from './components/spatial/SpatialWorkspace';
-import { PointPassport } from './components/passport/PointPassport';
 import { TimeExplorer } from './components/timeline/TimeExplorer';
 import { ComparisonMatrix } from './components/compare/ComparisonMatrix';
 import { MethodAndDataView } from './components/method/MethodAndDataView';
@@ -53,34 +52,22 @@ export default function App() {
       <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col gap-6 min-w-0">
         {activeTab === 'explore' && (
           <div className="flex flex-col gap-6 w-full min-w-0">
-            {/* Desktop Two-Column Split Layout (~58% Spatial Workspace, ~42% Point Passport) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch lg:h-[700px] w-full min-w-0">
-              {/* Left Column: Spatial Workspace */}
-              <div className="lg:col-span-7 min-w-0 h-full flex flex-col">
-                <SpatialWorkspace
-                  selectedSite={selectedSite}
-                  onSelectSite={setSelectedSite}
-                  sunAzimuthDeg={sunAzVal}
-                  earthAzimuthDeg={earthAzVal}
-                  subSolarLatDeg={globalEphemeris.subSolarLatDeg}
-                  subSolarLonDeg={globalEphemeris.subSolarLonDeg}
-                  currentIsoUtc={currentIsoUtc}
-                />
-              </div>
+            {/* 1. Spatial Workspace: Toolbar, 2D/3D Visualization, Point Passport, and Candidate Sites */}
+            <SpatialWorkspace
+              selectedSite={selectedSite}
+              onSelectSite={setSelectedSite}
+              conditions={conditions}
+              calculationMode={calculationMode}
+              onCalculationModeChange={setCalculationMode}
+              onOpenMethodDetails={() => setActiveTab('method')}
+              sunAzimuthDeg={sunAzVal}
+              earthAzimuthDeg={earthAzVal}
+              subSolarLatDeg={globalEphemeris.subSolarLatDeg}
+              subSolarLonDeg={globalEphemeris.subSolarLonDeg}
+              currentIsoUtc={currentIsoUtc}
+            />
 
-              {/* Right Column: Point Passport and Analytical Results */}
-              <div className="lg:col-span-5 min-w-0 h-full flex flex-col">
-                <PointPassport
-                  site={selectedSite}
-                  conditions={conditions}
-                  calculationMode={calculationMode}
-                  onCalculationModeChange={setCalculationMode}
-                  onOpenMethodDetails={() => setActiveTab('method')}
-                />
-              </div>
-            </div>
-
-            {/* Bottom Full-Width Section: Continuous Ephemeris Time Explorer */}
+            {/* 2. Sibling Section: Continuous Ephemeris Time Explorer */}
             <section className="w-full min-w-0" aria-label="Time-Series Celestial Ephemeris Explorer">
               <TimeExplorer
                 selectedSite={selectedSite}
