@@ -329,7 +329,7 @@ export function SouthPoleMap({
               </g>
             )}
 
-            {/* Major Crater Features with optional Permanently Shadowed Regions (PSR) */}
+            {/* Major Crater Features with optional Permanently Shadowed Regions (PSR) - Subdued Background Hierarchy */}
             <g className="craters">
               {CRATERS.map((crater) => {
                 const pos = project(crater.lat, crater.lon);
@@ -337,34 +337,37 @@ export function SouthPoleMap({
                 const radiusPx = Math.max(8, (crater.diameterKm / 2 / 30.3 / DEG_SPAN) * MAX_RADIUS);
 
                 return (
-                  <g key={crater.name} className="crater-group">
+                  <g key={crater.name} className="crater-group select-none pointer-events-none">
                     {/* Crater Rim Elevation Profile */}
                     <circle
                       cx={pos.x}
                       cy={pos.y}
                       r={radiusPx}
-                      fill="#0e1724"
-                      stroke="#233549"
-                      strokeWidth="1.2"
+                      fill="#0a101b"
+                      fillOpacity="0.4"
+                      stroke="#223348"
+                      strokeWidth="0.85"
+                      strokeOpacity="0.45"
                     />
                     {/* Crater Floor / Interior */}
                     <circle
                       cx={pos.x}
                       cy={pos.y}
                       r={radiusPx * 0.75}
-                      fill={showPsr && crater.hasPsr ? 'url(#psr-hatch)' : '#070c14'}
-                      stroke="#1a2736"
-                      strokeWidth="0.8"
+                      fill={showPsr && crater.hasPsr ? 'url(#psr-hatch)' : '#060a12'}
+                      stroke="#142130"
+                      strokeWidth="0.6"
+                      strokeOpacity="0.4"
                     />
-                    {/* Crater Name Label */}
+                    {/* Subdued Crater Name Label */}
                     <text
                       x={pos.x}
-                      y={pos.y + radiusPx + 10}
+                      y={pos.y + radiusPx + 9}
                       textAnchor="middle"
-                      fill="var(--lm-color-text-muted)"
-                      fontSize="9"
+                      fill="var(--lm-color-text-disabled)"
+                      fontSize="7.5"
                       fontFamily="monospace"
-                      className="pointer-events-none select-none opacity-85"
+                      opacity="0.45"
                     >
                       {crater.name}
                     </text>
@@ -470,22 +473,27 @@ export function SouthPoleMap({
               90.0°S
             </text>
 
-            {/* Candidate Site Pins */}
+            {/* Candidate Site Pins - Highest Hierarchy with Guaranteed Hit Target */}
             <g className="candidate-sites">
               {CANDIDATE_SITES.map((site) => {
                 const pos = project(site.coordinates.latitudeDeg, site.coordinates.longitudeDeg);
                 const isSelected = site.id === selectedSite.id;
                 const isHovered = hoveredSite?.id === site.id;
+                const displayName = site.name.replace(' Crater Rim', '').replace(' Mountain', '');
 
                 return (
                   <g
                     key={site.id}
                     tabIndex={0}
                     role="button"
-                    aria-label={`Select site ${site.name} at ${Math.abs(site.coordinates.latitudeDeg)}°S, ${site.coordinates.longitudeDeg}°E`}
+                    aria-label={`Select site ${site.name} (${site.code}) at ${Math.abs(site.coordinates.latitudeDeg)}°S, ${site.coordinates.longitudeDeg}°E`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelectSite(site);
+                    }}
+                    onMouseDown={(e) => {
+                      // Prevent map drag when clicking directly on a candidate site
+                      e.stopPropagation();
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -495,11 +503,14 @@ export function SouthPoleMap({
                     }}
                     onMouseEnter={() => setHoveredSite(site)}
                     onMouseLeave={() => setHoveredSite(null)}
-                    className="cursor-pointer focus:outline-none group"
+                    className="cursor-pointer focus:outline-none group focus-visible:outline-2 focus-visible:outline-[var(--lm-color-selected-site)]"
                   >
-                    {/* Selected Site Halo */}
+                    {/* Generous Invisible Click Target to guarantee zero missed clicks */}
+                    <circle cx={pos.x} cy={pos.y} r="20" fill="transparent" />
+
+                    {/* Selected Site Marker Target Rings */}
                     {isSelected && (
-                      <>
+                      <g className="selected-site-rings">
                         <circle
                           cx={pos.x}
                           cy={pos.y}
@@ -508,42 +519,93 @@ export function SouthPoleMap({
                           stroke="var(--lm-color-selected-site)"
                           strokeWidth="1.8"
                           strokeDasharray="3 2"
-                          className="animate-pulse"
+                          opacity="0.9"
                         />
                         <circle
                           cx={pos.x}
                           cy={pos.y}
                           r="22"
                           fill="var(--lm-color-selected-site)"
-                          opacity="0.15"
+                          opacity="0.12"
                         />
-                      </>
+                      </g>
                     )}
 
-                    {/* Marker Pin */}
+                    {/* Site Marker Center Jewel Pin */}
                     <circle
                       cx={pos.x}
                       cy={pos.y}
-                      r={isSelected ? '6.5' : isHovered ? '5.5' : '4.5'}
-                      fill={isSelected ? 'var(--lm-color-selected-site)' : '#9bb0c9'}
-                      stroke={isSelected ? '#ffffff' : '#142030'}
-                      strokeWidth="1.5"
+                      r={isSelected ? '6' : isHovered ? '5.2' : '4.2'}
+                      fill={isSelected ? 'var(--lm-color-selected-site)' : isHovered ? '#70d6c5' : '#38bdf8'}
+                      stroke={isSelected ? '#ffffff' : '#080f1a'}
+                      strokeWidth={isSelected ? '1.8' : '1.5'}
                       className="transition-all duration-150"
                     />
 
-                    {/* Site Label */}
-                    <text
-                      x={pos.x}
-                      y={pos.y - (isSelected ? 11 : 9)}
-                      textAnchor="middle"
-                      fill={isSelected ? 'var(--lm-color-selected-site)' : 'var(--lm-color-text-secondary)'}
-                      fontSize={isSelected ? '10.5' : '9'}
-                      fontWeight={isSelected ? '600' : '400'}
-                      fontFamily="monospace"
-                      className="select-none drop-shadow-sm"
-                    >
-                      {site.name.replace(' Crater Rim', '').replace(' Mountain', '')}
-                    </text>
+                    {/* Leader Line for Selected or Hovered Site */}
+                    {(isSelected || isHovered) && (
+                      <line
+                        x1={pos.x}
+                        y1={pos.y - (isSelected ? 6 : 5)}
+                        x2={pos.x}
+                        y2={pos.y - 12}
+                        stroke={isSelected ? 'var(--lm-color-selected-site)' : '#4a6585'}
+                        strokeWidth="1.2"
+                      />
+                    )}
+
+                    {/* High-Contrast Scientific Site Badge Tag */}
+                    {isSelected ? (
+                      <g className="selected-site-badge">
+                        <rect
+                          x={pos.x - 44}
+                          y={pos.y - 28}
+                          width="88"
+                          height="16"
+                          rx="3"
+                          fill="#09121f"
+                          stroke="var(--lm-color-selected-site)"
+                          strokeWidth="1.3"
+                          className="drop-shadow-md"
+                        />
+                        <text
+                          x={pos.x}
+                          y={pos.y - 17}
+                          textAnchor="middle"
+                          fill="var(--lm-color-selected-site)"
+                          fontSize="9.5"
+                          fontWeight="bold"
+                          fontFamily="monospace"
+                        >
+                          {site.code} • {displayName}
+                        </text>
+                      </g>
+                    ) : (
+                      <g className="unselected-site-tag">
+                        <rect
+                          x={pos.x - 22}
+                          y={pos.y - 20}
+                          width="44"
+                          height="12"
+                          rx="2"
+                          fill="#060c16"
+                          fillOpacity={isHovered ? '0.95' : '0.8'}
+                          stroke={isHovered ? 'var(--lm-color-selected-site)' : '#1e2c3d'}
+                          strokeWidth={isHovered ? '1' : '0.7'}
+                        />
+                        <text
+                          x={pos.x}
+                          y={pos.y - 11}
+                          textAnchor="middle"
+                          fill={isHovered ? '#ffffff' : '#94a3b8'}
+                          fontSize="8"
+                          fontWeight={isHovered ? '600' : '400'}
+                          fontFamily="monospace"
+                        >
+                          {site.code}
+                        </text>
+                      </g>
+                    )}
                   </g>
                 );
               })}

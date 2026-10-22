@@ -172,11 +172,15 @@ export function LunarGlobe3D({
         container: THREE.Group;
         ring: THREE.Mesh;
         beacon: THREE.Mesh;
+        hitProxy: THREE.Mesh;
         stalk: THREE.Line;
         badge: THREE.Sprite;
+        surfacePos: THREE.Vector3;
+        normal: THREE.Vector3;
         site: CandidateSite;
       }
     >;
+    hitTargets: THREE.Object3D[];
     raycaster: THREE.Raycaster;
     mouse: THREE.Vector2;
     isTransitioning: boolean;
@@ -191,20 +195,20 @@ export function LunarGlobe3D({
   // Helper to create text sprite for scientific site pins and polar labels
   const createTextBadge = useCallback((text: string, isSelected: boolean) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 64;
+    canvas.width = 280;
+    canvas.height = 70;
     const ctx = canvas.getContext('2d')!;
 
-    // Background pill
-    ctx.fillStyle = isSelected ? 'rgba(12, 19, 32, 0.92)' : 'rgba(7, 11, 18, 0.85)';
+    // Background pill with high-contrast scientific styling
+    ctx.fillStyle = isSelected ? 'rgba(10, 18, 30, 0.94)' : 'rgba(12, 19, 32, 0.88)';
     ctx.strokeStyle = isSelected ? '#70D6C5' : '#4A6585';
-    ctx.lineWidth = isSelected ? 3 : 1.5;
+    ctx.lineWidth = isSelected ? 3.5 : 1.5;
 
     const r = 12;
-    const x = 4;
+    const x = 5;
     const y = 8;
-    const w = 248;
-    const h = 48;
+    const w = 270;
+    const h = 54;
 
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -222,10 +226,10 @@ export function LunarGlobe3D({
 
     // Text label
     ctx.fillStyle = isSelected ? '#70D6C5' : '#F1F5F9';
-    ctx.font = isSelected ? 'bold 20px "JetBrains Mono", monospace' : '18px "JetBrains Mono", monospace';
+    ctx.font = isSelected ? 'bold 22px "JetBrains Mono", monospace' : '20px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 128, 32);
+    ctx.fillText(text, 140, 35);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
@@ -237,7 +241,7 @@ export function LunarGlobe3D({
     });
 
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(0.24, 0.06, 1);
+    sprite.scale.set(0.26, 0.065, 1);
     return sprite;
   }, []);
 
@@ -558,7 +562,7 @@ export function LunarGlobe3D({
     globeGroup.add(vectorsGroup);
 
     // ----------------------------------------------------
-    // Candidate Site Scientific Markers in 3D
+    // Candidate Site Scientific Markers in 3D (Decluttered with Leader Lines)
     // ----------------------------------------------------
     const markersMap = new Map<
       string,
@@ -566,11 +570,15 @@ export function LunarGlobe3D({
         container: THREE.Group;
         ring: THREE.Mesh;
         beacon: THREE.Mesh;
+        hitProxy: THREE.Mesh;
         stalk: THREE.Line;
         badge: THREE.Sprite;
+        surfacePos: THREE.Vector3;
+        normal: THREE.Vector3;
         site: CandidateSite;
       }
     >();
+    const hitTargets: THREE.Object3D[] = [];
 
     CANDIDATE_SITES.forEach((site) => {
       const isSelected = site.id === selectedSite.id;
@@ -582,6 +590,7 @@ export function LunarGlobe3D({
       const normal = surfacePos.clone().normalize();
       const stalkHeight = 0.055;
       const beaconPos = surfacePos.clone().add(normal.clone().multiplyScalar(stalkHeight));
+      const badgePos = beaconPos.clone().add(normal.clone().multiplyScalar(0.04));
 
       const markerContainer = new THREE.Group();
       markerContainer.userData = { siteId: site.id };
@@ -589,10 +598,10 @@ export function LunarGlobe3D({
       // 1. Surface Datum Target Ring
       const ringGeo = new THREE.RingGeometry(0.016, 0.024, 24);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: isSelected ? 0x70d6c5 : 0x8ccbff,
+        color: isSelected ? 0x70d6c5 : 0x4a6585,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: isSelected ? 0.95 : 0.6,
+        opacity: isSelected ? 0.95 : 0.55,
       });
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
       ringMesh.position.copy(surfacePos);
@@ -602,25 +611,36 @@ export function LunarGlobe3D({
       // 2. Vertical Telemetry Stalk
       const stalkGeo = new THREE.BufferGeometry().setFromPoints([surfacePos, beaconPos]);
       const stalkMat = new THREE.LineBasicMaterial({
-        color: isSelected ? 0x70d6c5 : 0x64748b,
+        color: isSelected ? 0x70d6c5 : 0x4a6585,
         transparent: true,
-        opacity: isSelected ? 0.9 : 0.5,
+        opacity: isSelected ? 0.95 : 0.45,
       });
       const stalkLine = new THREE.Line(stalkGeo, stalkMat);
       markerContainer.add(stalkLine);
 
       // 3. Top Beacon Marker Sphere
-      const beaconGeo = new THREE.SphereGeometry(0.014, 12, 12);
+      const beaconGeo = new THREE.SphereGeometry(0.014, 14, 14);
       const beaconMat = new THREE.MeshBasicMaterial({
-        color: isSelected ? 0x70d6c5 : 0x8ccbff,
+        color: isSelected ? 0x70d6c5 : 0x38bdf8,
       });
       const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
       beaconMesh.position.copy(beaconPos);
       markerContainer.add(beaconMesh);
 
-      // 4. Billboarded Scientific Label Badge
+      // 4. Generous Invisible Hit-Test Proxy Sphere (ensures 100% reliable click selection)
+      const hitProxyGeo = new THREE.SphereGeometry(0.075, 10, 10);
+      const hitProxyMat = new THREE.MeshBasicMaterial({ visible: false });
+      const hitProxy = new THREE.Mesh(hitProxyGeo, hitProxyMat);
+      hitProxy.position.copy(beaconPos);
+      hitProxy.userData = { siteId: site.id };
+      markerContainer.add(hitProxy);
+      hitTargets.push(hitProxy);
+
+      // 5. Billboarded Scientific Label Badge with Screen-Space Decluttering
+      // Selected site badge is always visible; unselected badges reveal on hover to avoid overlap
       const badge = createTextBadge(site.code, isSelected);
-      badge.position.copy(beaconPos.clone().add(normal.clone().multiplyScalar(0.035)));
+      badge.position.copy(badgePos);
+      badge.visible = isSelected;
       markerContainer.add(badge);
 
       globeGroup.add(markerContainer);
@@ -628,14 +648,17 @@ export function LunarGlobe3D({
         container: markerContainer,
         ring: ringMesh,
         beacon: beaconMesh,
+        hitProxy,
         stalk: stalkLine,
         badge,
+        surfacePos,
+        normal,
         site,
       });
     });
 
     // ----------------------------------------------------
-    // User Interaction & Raycasting
+    // User Interaction & High-Precision Raycasting
     // ----------------------------------------------------
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
@@ -653,6 +676,7 @@ export function LunarGlobe3D({
       polarFootprintGroup,
       vectorsGroup,
       markersMap,
+      hitTargets,
       raycaster,
       mouse,
       isTransitioning: false,
@@ -673,26 +697,25 @@ export function LunarGlobe3D({
       isMouseDown = false;
 
       const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
-      if (dist < 6 && containerRef.current && sceneContextRef.current) {
+      // Generous threshold to distinguish intentional click from OrbitControls rotation
+      if (dist < 8 && containerRef.current && sceneContextRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(hitTargets, false);
 
-        const targets: THREE.Object3D[] = [];
-        markersMap.forEach(({ beacon, ring }) => {
-          targets.push(beacon);
-          targets.push(ring);
-        });
-
-        const hits = raycaster.intersectObjects(targets, false);
         if (hits.length > 0) {
-          const hitParent = hits[0].object.parent;
-          if (hitParent && hitParent.userData.siteId) {
-            const foundSite = CANDIDATE_SITES.find((s) => s.id === hitParent.userData.siteId);
+          const hitObj = hits[0].object;
+          const hitSiteId = hitObj.userData.siteId || hitObj.parent?.userData?.siteId;
+          if (hitSiteId) {
+            const foundSite = CANDIDATE_SITES.find((s) => s.id === hitSiteId);
             if (foundSite) {
               onSelectSite(foundSite);
+              if (activePreset === 'site') {
+                applyCameraPreset('site', foundSite);
+              }
             }
           }
         }
@@ -706,22 +729,39 @@ export function LunarGlobe3D({
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const targets: THREE.Object3D[] = [];
-      markersMap.forEach(({ beacon, ring }) => {
-        targets.push(beacon);
-        targets.push(ring);
-      });
+      const hits = raycaster.intersectObjects(hitTargets, false);
 
-      const hits = raycaster.intersectObjects(targets, false);
       if (hits.length > 0) {
-        const hitParent = hits[0].object.parent;
-        if (hitParent && hitParent.userData.siteId) {
-          const found = CANDIDATE_SITES.find((s) => s.id === hitParent.userData.siteId);
-          setHoveredSite(found || null);
-          return;
+        const hitObj = hits[0].object;
+        const hitSiteId = hitObj.userData.siteId || hitObj.parent?.userData?.siteId;
+        if (hitSiteId) {
+          const found = CANDIDATE_SITES.find((s) => s.id === hitSiteId);
+          if (found) {
+            setHoveredSite(found);
+            if (containerRef.current) {
+              containerRef.current.style.cursor = 'pointer';
+            }
+            // Show badge on hover if not already selected
+            const markerEntry = markersMap.get(found.id);
+            if (markerEntry && !markerEntry.badge.visible) {
+              markerEntry.badge.visible = true;
+            }
+            return;
+          }
         }
       }
-      setHoveredSite(null);
+
+      if (hoveredSite) {
+        // Hide badge if it wasn't the selected site
+        const prevEntry = markersMap.get(hoveredSite.id);
+        if (prevEntry && prevEntry.site.id !== selectedSite.id) {
+          prevEntry.badge.visible = false;
+        }
+        setHoveredSite(null);
+      }
+      if (containerRef.current) {
+        containerRef.current.style.cursor = 'grab';
+      }
     }
 
     const dom = renderer.domElement;
@@ -729,8 +769,11 @@ export function LunarGlobe3D({
     dom.addEventListener('pointerup', onPointerUp);
     dom.addEventListener('pointermove', onPointerMove);
 
+    // Scratch vector to avoid per-frame allocations in render loop
+    const _toCam = new THREE.Vector3();
+
     // ----------------------------------------------------
-    // Animation Render Loop
+    // Animation Render Loop with Back-Face Horizon Occlusion Culling
     // ----------------------------------------------------
     let animId: number;
     function animate() {
@@ -754,6 +797,16 @@ export function LunarGlobe3D({
           ctx.transitionTarget = null;
         }
       }
+
+      // Back-Face Horizon Occlusion Culling:
+      // Hide candidate site markers that are on the far side of the Moon relative to camera
+      const camPos = ctx.camera.position;
+      ctx.markersMap.forEach(({ container, surfacePos, normal }) => {
+        _toCam.copy(camPos).sub(surfacePos).normalize();
+        const facingDot = normal.dot(_toCam);
+        // If facingDot < -0.05, the site is over the lunar horizon curve
+        container.visible = facingDot >= -0.05;
+      });
 
       ctx.controls.update();
       ctx.renderer.render(ctx.scene, ctx.camera);
@@ -884,35 +937,40 @@ export function LunarGlobe3D({
     const ctx = sceneContextRef.current;
     if (!ctx) return;
 
-    ctx.markersMap.forEach(({ ring, beacon, stalk, badge, container, site }) => {
+    ctx.markersMap.forEach(({ ring, beacon, stalk, badge, container, site, surfacePos, normal }) => {
       const isSelected = site.id === selectedSite.id;
 
-      (ring.material as THREE.MeshBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x8ccbff);
+      (ring.material as THREE.MeshBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x4a6585);
       (ring.material as THREE.MeshBasicMaterial).opacity = isSelected ? 0.95 : 0.5;
-      ring.scale.setScalar(isSelected ? 1.5 : 1.0);
+      ring.scale.setScalar(isSelected ? 1.6 : 1.0);
 
-      (beacon.material as THREE.MeshBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x8ccbff);
-      beacon.scale.setScalar(isSelected ? 1.4 : 1.0);
+      (beacon.material as THREE.MeshBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x38bdf8);
+      beacon.scale.setScalar(isSelected ? 1.5 : 1.0);
 
-      (stalk.material as THREE.LineBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x64748b);
+      (stalk.material as THREE.LineBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x4a6585);
       (stalk.material as THREE.LineBasicMaterial).opacity = isSelected ? 0.95 : 0.45;
 
-      container.remove(badge);
-      badge.material.dispose();
-      const newBadge = createTextBadge(site.code, isSelected);
-      const moonRadius = 1.45;
-      const surfacePos = latLonToVector3(
-        site.coordinates.latitudeDeg,
-        site.coordinates.longitudeDeg,
-        moonRadius * 1.006
-      );
-      const normal = surfacePos.clone().normalize();
-      const beaconPos = surfacePos.clone().add(normal.clone().multiplyScalar(0.055));
-      newBadge.position.copy(beaconPos.clone().add(normal.clone().multiplyScalar(0.035)));
-      container.add(newBadge);
-      ctx.markersMap.get(site.id)!.badge = newBadge;
+      // Only selected site shows billboard badge at rest; unselected badges appear on hover
+      badge.visible = isSelected;
+
+      if (isSelected) {
+        // Re-generate high-contrast selected badge texture if needed
+        container.remove(badge);
+        badge.material.dispose();
+        const newBadge = createTextBadge(site.code, true);
+        const beaconPos = surfacePos.clone().add(normal.clone().multiplyScalar(0.055));
+        newBadge.position.copy(beaconPos.clone().add(normal.clone().multiplyScalar(0.04)));
+        newBadge.visible = true;
+        container.add(newBadge);
+        ctx.markersMap.get(site.id)!.badge = newBadge;
+      }
     });
-  }, [selectedSite.id, createTextBadge]);
+
+    // If currently in 'site' camera preset, smoothly focus on the newly selected site
+    if (activePreset === 'site') {
+      applyCameraPreset('site', selectedSite);
+    }
+  }, [selectedSite.id, createTextBadge, activePreset, applyCameraPreset, selectedSite]);
 
   // Synchronize Layer Toggles
   useEffect(() => {

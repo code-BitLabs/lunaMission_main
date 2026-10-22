@@ -203,13 +203,14 @@ export function SpatialWorkspace({
       )}
 
       {viewMode === 'dual' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full h-full min-h-0 flex-1 p-2 overflow-y-auto md:overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full h-full min-h-0 flex-1 p-2 overflow-y-auto md:overflow-hidden bg-[var(--lm-color-canvas)]">
           {/* Left Column: 2D Polar Stereographic Map */}
-          <div className="h-[460px] md:h-full w-full min-h-0 flex flex-col">
-            <div className="flex items-center justify-between pb-1 text-[11px] font-mono text-[var(--lm-color-text-muted)]">
-              <span>[2D Polar Stereographic 83°S–90°S]</span>
+          <div className="h-[480px] md:h-full w-full min-h-0 flex flex-col rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border-subtle)] overflow-hidden bg-[var(--lm-color-canvas)]">
+            <div className="flex items-center justify-between px-2.5 py-1.5 bg-[var(--lm-color-surface-raised)] border-b border-[var(--lm-color-border-subtle)] text-[11px] font-mono text-[var(--lm-color-text-secondary)] shrink-0">
+              <span className="font-semibold text-[var(--lm-color-text-primary)]">2D Polar Map</span>
+              <span className="text-[10px] text-[var(--lm-color-text-muted)]">83°S–90°S Stereographic</span>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 relative">
               <SouthPoleMap
                 selectedSite={selectedSite}
                 onSelectSite={onSelectSite}
@@ -232,11 +233,12 @@ export function SpatialWorkspace({
           </div>
 
           {/* Right Column: 3D Moon Globe */}
-          <div className="h-[460px] md:h-full w-full min-h-0 flex flex-col">
-            <div className="flex items-center justify-between pb-1 text-[11px] font-mono text-[var(--lm-color-text-muted)]">
-              <span>[3D LRO Digital Elevation Globe]</span>
+          <div className="h-[480px] md:h-full w-full min-h-0 flex flex-col rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border-subtle)] overflow-hidden bg-[var(--lm-color-canvas)]">
+            <div className="flex items-center justify-between px-2.5 py-1.5 bg-[var(--lm-color-surface-raised)] border-b border-[var(--lm-color-border-subtle)] text-[11px] font-mono text-[var(--lm-color-text-secondary)] shrink-0">
+              <span className="font-semibold text-[var(--lm-color-text-primary)]">3D Moon Globe</span>
+              <span className="text-[10px] text-[var(--lm-color-selected-site)]">NASA LROC / LOLA DEM</span>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 relative">
               <VisualizationErrorBoundary
                 fallbackTitle="3D Lunar Globe Encountered an Error"
                 onFallbackTo2D={() => setViewMode('map2d')}
@@ -576,14 +578,14 @@ export function SpatialWorkspace({
       {/* Main Workspace Grid (Left: 2D/3D Visualization, Right: Point Passport) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full min-w-0">
         {/* Left Column: Spatial Viewport */}
-        <div className="lg:col-span-7 min-w-0 flex flex-col gap-2">
-          <div className="w-full h-[540px] sm:h-[600px] lg:h-[680px] min-h-[460px] relative rounded-[var(--lm-radius-md)] overflow-hidden border border-[var(--lm-color-border-subtle)] bg-[var(--lm-color-canvas)] flex flex-col">
+        <div className={`${viewMode === 'dual' ? 'lg:col-span-8' : 'lg:col-span-7'} min-w-0 flex flex-col gap-2`}>
+          <div className="w-full h-[560px] sm:h-[620px] lg:h-[700px] xl:h-[740px] min-h-[480px] relative rounded-[var(--lm-radius-md)] overflow-hidden border border-[var(--lm-color-border-subtle)] bg-[var(--lm-color-canvas)] flex flex-col">
             {renderSpatialViewport()}
           </div>
         </div>
 
         {/* Right Column: Complete Point Passport with Sun, Earth & Local-Sky Horizon Geometry */}
-        <div className="lg:col-span-5 min-w-0 flex flex-col">
+        <div className={`${viewMode === 'dual' ? 'lg:col-span-4' : 'lg:col-span-5'} min-w-0 flex flex-col`}>
           <PointPassport
             site={selectedSite}
             conditions={conditions}
