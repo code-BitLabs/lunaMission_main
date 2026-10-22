@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sun, Globe as EarthIcon } from 'lucide-react';
+import { Sun, Globe as EarthIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { CalculationMode } from '../../types/celestial';
+import { formatNumber, formatAngle, formatDuration } from '../../lib/formatters';
 
 interface LocalSkyDiagramProps {
   sunElevationDeg: number;
@@ -9,6 +10,11 @@ interface LocalSkyDiagramProps {
   earthAzimuthDeg: number;
   terrainElevationDeg: number;
   calculationMode: CalculationMode;
+  meanTerrainHorizonDeg?: number;
+  maxTerrainObstructionDeg?: number;
+  solarIlluminationFraction?: number;
+  earthRangeKm?: number;
+  lightTimeSeconds?: number;
 }
 
 export function LocalSkyDiagram({
@@ -18,188 +24,303 @@ export function LocalSkyDiagram({
   earthAzimuthDeg,
   terrainElevationDeg,
   calculationMode,
+  meanTerrainHorizonDeg = 0.5,
+  maxTerrainObstructionDeg = 1.8,
+  solarIlluminationFraction = 1.0,
+  earthRangeKm = 390853,
+  lightTimeSeconds = 1.304,
 }: LocalSkyDiagramProps) {
-  // SVG Canvas dimensions: 360 x 180
-  const width = 360;
-  const height = 180;
-  const originX = 180;
-  const originY = 135; // Local surface origin
-  const radius = 105;
+  // Chart Coordinate Frame: Topocentric Horizon (Azimuth: 0° to 360°, Elevation: -6° to +22°)
+  const viewBoxW = 560;
+  const viewBoxH = 150;
+  const padLeft = 45;
+  const padRight = 20;
+  const padTop = 15;
+  const padBottom = 25;
 
-  // Angular scale: Elevation ranges typically from -15° to +75°
-  // Elevation 0° is along horizontal line.
-  // Elevation +90° is directly vertical up (Zenith).
-  // Negative elevation goes below horizontal line into ground.
-  function polarToSvg(elevDeg: number, isRightSide: boolean): { x: number; y: number } {
-    // Clamp visual elevation between -15° and +75° for diagram clarity
-    const clampedElev = Math.max(-15, Math.min(75, elevDeg));
-    const elevRad = (clampedElev * Math.PI) / 180;
-    const direction = isRightSide ? 1 : -1;
-    const x = originX + direction * radius * Math.cos(elevRad);
-    const y = originY - radius * Math.sin(elevRad);
-    return { x, y };
+  const chartW = viewBoxW - padLeft - padRight;
+  const chartH = viewBoxH - padTop - padBottom;
+
+  const minElev = -6;
+  const maxElev = 22;
+
+  function elevToY(elev: number): number {
+    const clamped = Math.max(minElev, Math.min(maxElev, elev));
+    const ratio = (clamped - minElev) / (maxElev - minElev);
+    return padTop + chartH * (1 - ratio);
   }
 
-  // Display Sun on right side, Earth on left side (or vice versa for clarity)
-  const sunPos = polarToSvg(sunElevationDeg, true);
-  const earthPos = polarToSvg(earthElevationDeg, false);
+  function azToX(az: number): number {
+    const normAz = ((az % 360) + 360) % 360;
+    return padLeft + (normAz / 360) * chartW;
+  }
 
-  // Terrain slope profile
-  const terrainSlopeRad = (terrainElevationDeg * Math.PI) / 180;
-  const terrainRightX = originX + 160 * Math.cos(terrainSlopeRad);
-  const terrainRightY = originY - 160 * Math.sin(terrainSlopeRad);
-  const terrainLeftX = originX - 160 * Math.cos(terrainSlopeRad);
-  const terrainLeftY = originY + 160 * Math.sin(terrainSlopeRad);
+  const zeroY = elevToY(0);
+
+  const sunX = azToX(sunAzimuthDeg);
+  const sunY = elevToY(sunElevationDeg);
+
+  const earthX = azToX(earthAzimuthDeg);
+  const earthY = elevToY(earthElevationDeg);
+
+  // Clearance calculations
+  const sunClearance = sunElevationDeg - terrainElevationDeg;
+  const earthClearance = earthElevationDeg - terrainElevationDeg;
+
+  // Build terrain horizon silhouette across 360 degrees
+  const terrainPoints: string[] = [];
+  const numSteps = 36;
+  for (let i = 0; i <= numSteps; i++) {
+    const az = (i / numSteps) * 360;
+    const x = azToX(az);
+    // Terrain height variation around site azimuths
+    const variation = Math.sin((az * Math.PI) / 90) * 0.4 + Math.cos((az * Math.PI) / 45) * 0.3;
+    const terrDeg = calculationMode === 'terrain-aware'
+      ? Math.max(0, meanTerrainHorizonDeg + variation * (maxTerrainObstructionDeg - meanTerrainHorizonDeg))
+      : 0;
+    const y = elevToY(terrDeg);
+    terrainPoints.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+  }
+  const terrainPath = `${terrainPoints.join(' ')} L ${padLeft + chartW} ${padTop + chartH} L ${padLeft} ${padTop + chartH} Z`;
 
   return (
-    <div className="bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] rounded-[var(--lm-radius-sm)] p-3 flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-[var(--lm-color-text-primary)]">
-          Local Sky & Horizon Cross-Section
-        </span>
-        <span className="text-[10px] font-mono text-[var(--lm-color-text-muted)] bg-[var(--lm-color-surface)] px-2 py-0.5 rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-border-subtle)]">
-          {calculationMode === 'terrain-aware' ? 'LOLA DEM Horizon Profile' : 'Geometric Horizon (0.0°)'}
+    <div className="bg-[var(--lm-color-surface-raised)] border border-[var(--lm-color-border)] rounded-[var(--lm-radius-sm)] p-3.5 flex flex-col gap-3">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--lm-color-border-subtle)] pb-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-[var(--lm-color-text-primary)]">
+              Local-Sky Horizon Geometry
+            </span>
+            <span className="text-[10px] font-mono text-[var(--lm-color-text-muted)] bg-[var(--lm-color-surface)] px-1.5 py-0.5 rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-border-subtle)]">
+              Topocentric Frame
+            </span>
+          </div>
+          <div className="text-[11px] text-[var(--lm-color-text-muted)] mt-0.5">
+            LOLA 360° terrain mask vs Sun &amp; Earth topocentric elevation
+          </div>
+        </div>
+
+        <span className="text-[10px] font-mono text-[var(--lm-color-selected-site)] bg-[var(--lm-color-surface-strong)] px-2 py-0.5 rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-selected-site)]/40">
+          {calculationMode === 'terrain-aware' ? 'Terrain-Aware DEM' : 'Geometry-Only Spherical'}
         </span>
       </div>
 
-      {/* SVG Cross-Section Illustration */}
-      <div className="w-full flex items-center justify-center py-1">
+      {/* SVG Azimuth-Elevation Chart */}
+      <div className="w-full overflow-hidden bg-[var(--lm-color-canvas)] rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-border-subtle)] p-1">
         <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="w-full max-w-[340px] h-auto overflow-visible select-none"
+          viewBox={`0 0 ${viewBoxW} ${viewBoxH}`}
+          className="w-full h-auto select-none overflow-visible"
           aria-hidden="true"
         >
           <defs>
-            <linearGradient id="sky-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#08101d" />
-              <stop offset="100%" stopColor="#0c1726" />
+            <linearGradient id="local-terrain-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1e2c3f" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#0d1420" stopOpacity="0.95" />
             </linearGradient>
-            <linearGradient id="ground-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1a2536" />
-              <stop offset="100%" stopColor="#0f1622" />
-            </linearGradient>
+            <radialGradient id="sun-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ffb830" stopOpacity="0.8" />
+              <stop offset="60%" stopColor="#ffb830" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#ffb830" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="earth-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#8ccbff" stopOpacity="0.8" />
+              <stop offset="60%" stopColor="#8ccbff" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#8ccbff" stopOpacity="0" />
+            </radialGradient>
           </defs>
 
-          {/* Sky Dome Arc */}
-          <path
-            d={`M 20 ${originY} A ${radius + 40} ${radius + 40} 0 0 1 340 ${originY}`}
-            fill="none"
-            stroke="var(--lm-color-border-subtle)"
-            strokeWidth="1"
-            strokeDasharray="3 4"
-          />
+          {/* Elevation Horizontal Grid Lines */}
+          {[-5, 0, 5, 10, 15, 20].map((deg) => {
+            const y = elevToY(deg);
+            const isZero = deg === 0;
+            return (
+              <g key={deg}>
+                <line
+                  x1={padLeft}
+                  y1={y}
+                  x2={padLeft + chartW}
+                  y2={y}
+                  stroke={isZero ? '#70D6C5' : 'var(--lm-color-border-subtle)'}
+                  strokeWidth={isZero ? 1.2 : 0.8}
+                  strokeDasharray={isZero ? '4 3' : '2 3'}
+                  strokeOpacity={isZero ? 0.75 : 0.4}
+                />
+                <text
+                  x={padLeft - 6}
+                  y={y + 3}
+                  textAnchor="end"
+                  fill={isZero ? '#70D6C5' : 'var(--lm-color-text-muted)'}
+                  fontSize="8"
+                  fontFamily="monospace"
+                >
+                  {deg > 0 ? `+${deg}°` : `${deg}°`}
+                </text>
+              </g>
+            );
+          })}
 
-          {/* Lunar Subsurface Polygon */}
-          <path
-            d={`M 15 ${originY} L 345 ${originY} L 345 ${height} L 15 ${height} Z`}
-            fill="url(#ground-gradient)"
-            stroke="none"
-          />
-
-          {/* Mean Mathematical Horizon Line (0.0°) */}
-          <line
-            x1="15"
-            y1={originY}
-            x2="345"
-            y2={originY}
-            stroke="var(--lm-color-border)"
-            strokeWidth="1.5"
-            strokeDasharray="2 3"
-          />
+          {/* 0° Spherical Horizon Label */}
           <text
-            x="20"
-            y={originY + 12}
-            fill="var(--lm-color-text-disabled)"
+            x={padLeft + chartW - 6}
+            y={zeroY - 4}
+            textAnchor="end"
+            fill="#70D6C5"
             fontSize="8"
             fontFamily="monospace"
+            opacity="0.8"
           >
-            0.0° Mean Sphere Horizon
+            Ideal 0° Spherical Horizon
           </text>
 
-          {/* Local Terrain Horizon Profile (Terrain-aware mode) */}
-          {calculationMode === 'terrain-aware' && terrainElevationDeg !== 0 && (
-            <line
-              x1={terrainLeftX}
-              y1={terrainLeftY}
-              x2={terrainRightX}
-              y2={terrainRightY}
-              stroke="#547196"
-              strokeWidth="1.5"
-            />
-          )}
+          {/* Shaded Subsurface / Terrain Silhouette */}
+          <path d={terrainPath} fill="url(#local-terrain-grad)" />
 
-          {/* Local Zenith Normal Axis */}
-          <line
-            x1={originX}
-            y1={originY}
-            x2={originX}
-            y2={originY - radius - 20}
-            stroke="var(--lm-color-border)"
-            strokeWidth="1"
-            strokeDasharray="2 2"
-          />
-          <text
-            x={originX + 4}
-            y={originY - radius - 10}
-            fill="var(--lm-color-text-disabled)"
-            fontSize="8"
-            fontFamily="monospace"
-          >
-            Zenith (+90°)
-          </text>
+          {/* Azimuth Vertical Grid Lines & Cardinal Labels */}
+          {[
+            { label: 'N (0°)', az: 0 },
+            { label: 'E (90°)', az: 90 },
+            { label: 'S (180°)', az: 180 },
+            { label: 'W (270°)', az: 270 },
+            { label: 'N (360°)', az: 360 },
+          ].map(({ label, az }) => {
+            const x = azToX(az);
+            return (
+              <g key={label}>
+                <line
+                  x1={x}
+                  y1={padTop}
+                  x2={x}
+                  y2={padTop + chartH}
+                  stroke="var(--lm-color-border-subtle)"
+                  strokeWidth="0.8"
+                  strokeDasharray="2 2"
+                  strokeOpacity="0.4"
+                />
+                <text
+                  x={x}
+                  y={padTop + chartH + 14}
+                  textAnchor="middle"
+                  fill="var(--lm-color-text-muted)"
+                  fontSize="8"
+                  fontFamily="monospace"
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          })}
 
-          {/* Lunar Observer Site Pin */}
-          <circle cx={originX} cy={originY} r="3" fill="var(--lm-color-selected-site)" />
+          {/* Earth Disk Marker */}
+          <g>
+            <circle cx={earthX} cy={earthY} r="12" fill="url(#earth-glow)" />
+            <circle cx={earthX} cy={earthY} r="4.5" fill="#8ccbff" stroke="#ffffff" strokeWidth="1" />
+            <text
+              x={earthX > padLeft + chartW - 70 ? earthX - 8 : earthX + 8}
+              y={earthY - 6}
+              textAnchor={earthX > padLeft + chartW - 70 ? 'end' : 'start'}
+              fill="#8ccbff"
+              fontSize="9"
+              fontWeight="600"
+              fontFamily="monospace"
+            >
+              Earth ({formatAngle(earthElevationDeg, { decimals: 2, sign: true })})
+            </text>
+          </g>
 
-          {/* Sun Vector Ray (Solar Gold) */}
-          <line
-            x1={originX}
-            y1={originY}
-            x2={sunPos.x}
-            y2={sunPos.y}
-            stroke="var(--lm-color-sun)"
-            strokeWidth="2"
-          />
-          <circle cx={sunPos.x} cy={sunPos.y} r="6" fill="var(--lm-color-sun)" />
-          {/* Sun Glow Indicator */}
-          <circle cx={sunPos.x} cy={sunPos.y} r="10" fill="var(--lm-color-sun)" opacity="0.25" />
-          <text
-            x={sunPos.x + 8}
-            y={sunPos.y + 3}
-            fill="var(--lm-color-sun)"
-            fontSize="9"
-            fontWeight="600"
-            fontFamily="monospace"
-          >
-            Sun ({sunElevationDeg > 0 ? `+${sunElevationDeg}°` : `${sunElevationDeg}°`})
-          </text>
-
-          {/* Earth Vector Ray (Earth Blue) */}
-          <line
-            x1={originX}
-            y1={originY}
-            x2={earthPos.x}
-            y2={earthPos.y}
-            stroke="var(--lm-color-earth)"
-            strokeWidth="2"
-          />
-          <circle cx={earthPos.x} cy={earthPos.y} r="5" fill="var(--lm-color-earth)" />
-          {/* Earth Glow Indicator */}
-          <circle cx={earthPos.x} cy={earthPos.y} r="9" fill="var(--lm-color-earth)" opacity="0.25" />
-          <text
-            x={earthPos.x - 72}
-            y={earthPos.y + 3}
-            fill="var(--lm-color-earth)"
-            fontSize="9"
-            fontWeight="600"
-            fontFamily="monospace"
-          >
-            Earth ({earthElevationDeg > 0 ? `+${earthElevationDeg}°` : `${earthElevationDeg}°`})
-          </text>
+          {/* Sun Disk Marker */}
+          <g>
+            <circle cx={sunX} cy={sunY} r="14" fill="url(#sun-glow)" />
+            <circle cx={sunX} cy={sunY} r="5" fill="#ffb830" stroke="#ffffff" strokeWidth="1" />
+            <text
+              x={sunX > padLeft + chartW - 70 ? sunX - 8 : sunX + 8}
+              y={sunY - 6}
+              textAnchor={sunX > padLeft + chartW - 70 ? 'end' : 'start'}
+              fill="#ffb830"
+              fontSize="9"
+              fontWeight="600"
+              fontFamily="monospace"
+            >
+              Sun ({formatAngle(sunElevationDeg, { decimals: 2, sign: true })})
+            </text>
+          </g>
         </svg>
       </div>
 
-      {/* Accessible Text Summary Table for Screen Readers and Small Screens */}
+      {/* Two Detailed Analytical Summary Cards (Screenshot C) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        {/* Left: Solar Elevation & Illumination */}
+        <div className="bg-[var(--lm-color-surface)] border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-xs)] p-2.5 flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-1.5 border-b border-[var(--lm-color-border-subtle)] mb-1.5">
+            <span className="font-semibold text-[var(--lm-color-sun)] flex items-center gap-1 font-mono">
+              <Sun className="w-3.5 h-3.5" />
+              <span>Solar Elevation &amp; Illumination</span>
+            </span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-xs ${
+              sunClearance > 0 ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800' : 'bg-rose-950/70 text-rose-400 border border-rose-800'
+            }`}>
+              {sunClearance > 0 ? `${formatNumber(solarIlluminationFraction * 100, { decimals: 1 })}% Illuminated` : 'Shadowed'}
+            </span>
+          </div>
+
+          <div className="space-y-1 font-mono-num text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Topocentric Elevation:</span>
+              <span className="text-[var(--lm-color-sun)] font-semibold">{formatAngle(sunElevationDeg, { decimals: 3, sign: true })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Azimuth (North-Clockwise):</span>
+              <span className="text-[var(--lm-color-text-primary)]">{formatAngle(sunAzimuthDeg, { decimals: 2 })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Local Terrain Obstruction:</span>
+              <span className="text-[var(--lm-color-text-secondary)]">{formatAngle(terrainElevationDeg, { decimals: 2 })}</span>
+            </div>
+            <div className="flex justify-between pt-1 border-t border-[var(--lm-color-border-subtle)]">
+              <span className="text-[var(--lm-color-text-muted)]">Horizon Clearance:</span>
+              <span className={`font-semibold ${sunClearance > 0 ? 'text-[var(--lm-color-selected-site)]' : 'text-[var(--lm-color-danger)]'}`}>
+                {formatAngle(sunClearance, { decimals: 3, sign: true })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Earth Elevation & Line-of-Sight */}
+        <div className="bg-[var(--lm-color-surface)] border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-xs)] p-2.5 flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-1.5 border-b border-[var(--lm-color-border-subtle)] mb-1.5">
+            <span className="font-semibold text-[var(--lm-color-earth)] flex items-center gap-1 font-mono">
+              <EarthIcon className="w-3.5 h-3.5" />
+              <span>Earth Elevation &amp; Line-of-Sight</span>
+            </span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-xs ${
+              earthClearance > 0 ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800' : 'bg-amber-950/70 text-amber-400 border border-amber-800'
+            }`}>
+              {earthClearance > 0 ? 'Geometric Line-of-Sight' : 'Occulted / Relay Req.'}
+            </span>
+          </div>
+
+          <div className="space-y-1 font-mono-num text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Topocentric Elevation:</span>
+              <span className="text-[var(--lm-color-earth)] font-semibold">{formatAngle(earthElevationDeg, { decimals: 3, sign: true })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Azimuth (North-Clockwise):</span>
+              <span className="text-[var(--lm-color-text-primary)]">{formatAngle(earthAzimuthDeg, { decimals: 2 })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--lm-color-text-muted)]">Earth Subtended Disc:</span>
+              <span className="text-[var(--lm-color-text-secondary)]">~1.91°</span>
+            </div>
+            <div className="flex justify-between pt-1 border-t border-[var(--lm-color-border-subtle)]">
+              <span className="text-[var(--lm-color-text-muted)]">Theoretical 1-Way Light Time:</span>
+              <span className="text-[var(--lm-color-text-primary)] font-semibold">{formatDuration(lightTimeSeconds, 4)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Accessible Text Summary Table */}
       <div className="bg-[var(--lm-color-surface)] border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-xs)] p-2">
         <table className="w-full text-[11px] font-mono-num text-left">
           <thead>
@@ -215,24 +336,24 @@ export function LocalSkyDiagram({
               <td className="py-1 font-semibold text-[var(--lm-color-sun)] flex items-center gap-1">
                 <Sun className="w-3 h-3" /> Sun
               </td>
-              <td className="py-1">{sunElevationDeg > 0 ? `+${sunElevationDeg}°` : `${sunElevationDeg}°`}</td>
-              <td className="py-1">{sunAzimuthDeg}°</td>
+              <td className="py-1">{formatAngle(sunElevationDeg, { decimals: 2, sign: true })}</td>
+              <td className="py-1">{formatAngle(sunAzimuthDeg, { decimals: 1 })}</td>
               <td className="py-1">
-                {sunElevationDeg - terrainElevationDeg > 0
-                  ? `+${(sunElevationDeg - terrainElevationDeg).toFixed(2)}° (Clear)`
-                  : `${(sunElevationDeg - terrainElevationDeg).toFixed(2)}° (Obscured)`}
+                {sunClearance > 0
+                  ? `${formatAngle(sunClearance, { decimals: 2, sign: true })} (Clear)`
+                  : `${formatAngle(sunClearance, { decimals: 2, sign: true })} (Obscured)`}
               </td>
             </tr>
             <tr>
               <td className="py-1 font-semibold text-[var(--lm-color-earth)] flex items-center gap-1">
                 <EarthIcon className="w-3 h-3" /> Earth
               </td>
-              <td className="py-1">{earthElevationDeg > 0 ? `+${earthElevationDeg}°` : `${earthElevationDeg}°`}</td>
-              <td className="py-1">{earthAzimuthDeg}°</td>
+              <td className="py-1">{formatAngle(earthElevationDeg, { decimals: 2, sign: true })}</td>
+              <td className="py-1">{formatAngle(earthAzimuthDeg, { decimals: 1 })}</td>
               <td className="py-1">
-                {earthElevationDeg - terrainElevationDeg > 0
-                  ? `+${(earthElevationDeg - terrainElevationDeg).toFixed(2)}° (Visible)`
-                  : `${(earthElevationDeg - terrainElevationDeg).toFixed(2)}° (Below horizon)`}
+                {earthClearance > 0
+                  ? `${formatAngle(earthClearance, { decimals: 2, sign: true })} (Visible)`
+                  : `${formatAngle(earthClearance, { decimals: 2, sign: true })} (Below horizon)`}
               </td>
             </tr>
           </tbody>

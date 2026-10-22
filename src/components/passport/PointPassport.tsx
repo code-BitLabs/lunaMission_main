@@ -16,6 +16,7 @@ import { CelestialGeometryResult, CalculationMode } from '../../types/celestial'
 import { MetricBlock } from './MetricBlock';
 import { LocalSkyDiagram } from './LocalSkyDiagram';
 import { Badge } from '../ui/Badge';
+import { formatCoordinate, formatElevation, formatNumber } from '../../lib/formatters';
 
 interface PointPassportProps {
   site: CandidateSite;
@@ -121,19 +122,19 @@ export function PointPassport({
           <div>
             <div className="text-[10px] text-[var(--lm-color-text-muted)] uppercase">Latitude</div>
             <div className="font-semibold text-[var(--lm-color-text-primary)]">
-              {Math.abs(site.coordinates.latitudeDeg).toFixed(3)}°S
+              {formatCoordinate(site?.coordinates?.latitudeDeg, 'latitude', 3)}
             </div>
           </div>
           <div>
             <div className="text-[10px] text-[var(--lm-color-text-muted)] uppercase">Longitude</div>
             <div className="font-semibold text-[var(--lm-color-text-primary)]">
-              {site.coordinates.longitudeDeg.toFixed(3)}°E
+              {formatCoordinate(site?.coordinates?.longitudeDeg, 'longitude', 3)}
             </div>
           </div>
           <div className="col-span-2 sm:col-span-1">
             <div className="text-[10px] text-[var(--lm-color-text-muted)] uppercase">Elevation (DEM)</div>
             <div className="font-semibold text-[var(--lm-color-text-primary)]">
-              +{site.coordinates.elevationMeters.toLocaleString()} m
+              {formatElevation(site?.coordinates?.elevationMeters)}
             </div>
           </div>
         </div>

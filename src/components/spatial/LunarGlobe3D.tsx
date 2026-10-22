@@ -1005,8 +1005,8 @@ export function LunarGlobe3D({
           </div>
           <div className="text-[11px] font-mono text-[var(--lm-color-text-secondary)] mt-0.5">
             {Math.abs(hoveredSite.coordinates.latitudeDeg).toFixed(2)}°S,{' '}
-            {hoveredSite.coordinates.longitudeDeg.toFixed(2)}°E • Elevation: {hoveredSite.elevationM > 0 ? '+' : ''}
-            {hoveredSite.elevationM.toLocaleString()} m
+            {hoveredSite.coordinates.longitudeDeg.toFixed(2)}°E • Elevation: {hoveredSite.coordinates.elevationMeters > 0 ? '+' : ''}
+            {hoveredSite.coordinates.elevationMeters.toLocaleString()} m
           </div>
           <div className="text-[10px] text-[var(--lm-color-text-muted)] mt-1">
             Click to inspect point passport
