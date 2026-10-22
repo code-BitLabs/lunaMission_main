@@ -17,14 +17,24 @@ import {
 import { CandidateSite } from '../../types/site';
 import { CANDIDATE_SITES } from '../../lib/sites-data';
 
-interface LunarGlobe3DProps {
+export type CameraPreset = 'nadir' | 'oblique' | 'site' | 'global';
+
+export interface LunarGlobe3DProps {
   selectedSite: CandidateSite;
   onSelectSite: (site: CandidateSite) => void;
   subSolarLatDeg: number;
   subSolarLonDeg: number;
+  showGrid?: boolean;
+  showPolarFootprint?: boolean;
+  showVectors?: boolean;
+  onToggleGrid?: () => void;
+  onTogglePolarFootprint?: () => void;
+  onToggleVectors?: () => void;
+  hideHeader?: boolean;
+  hideRibbon?: boolean;
+  cameraPreset?: CameraPreset;
+  onCameraPresetChange?: (preset: CameraPreset) => void;
 }
-
-export type CameraPreset = 'nadir' | 'oblique' | 'site' | 'global';
 
 // Convert selenographic latitude/longitude to 3D Cartesian coordinates on sphere
 // Lat: +90° North (+Y), -90° South (-Y)
@@ -105,6 +115,16 @@ export function LunarGlobe3D({
   onSelectSite,
   subSolarLatDeg,
   subSolarLonDeg,
+  showGrid: propShowGrid,
+  showPolarFootprint: propShowPolarFootprint,
+  showVectors: propShowVectors,
+  onToggleGrid,
+  onTogglePolarFootprint,
+  onToggleVectors,
+  hideHeader = false,
+  hideRibbon = false,
+  cameraPreset: propCameraPreset,
+  onCameraPresetChange,
 }: LunarGlobe3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [webGlSupported, setWebGlSupported] = useState(true);
@@ -112,11 +132,20 @@ export function LunarGlobe3D({
   const [loadingError, setLoadingError] = useState<string | null>(null);
 
   // Layer toggles
-  const [showGrid, setShowGrid] = useState(false);
-  const [showPolarFootprint, setShowPolarFootprint] = useState(true);
-  const [showVectors, setShowVectors] = useState(true);
-  const [activePreset, setActivePreset] = useState<CameraPreset>('nadir');
+  const [localShowGrid, setLocalShowGrid] = useState(false);
+  const [localShowPolarFootprint, setLocalShowPolarFootprint] = useState(true);
+  const [localShowVectors, setLocalShowVectors] = useState(true);
+  const [localActivePreset, setLocalActivePreset] = useState<CameraPreset>('nadir');
   const [hoveredSite, setHoveredSite] = useState<CandidateSite | null>(null);
+
+  const showGrid = propShowGrid !== undefined ? propShowGrid : localShowGrid;
+  const showPolarFootprint = propShowPolarFootprint !== undefined ? propShowPolarFootprint : localShowPolarFootprint;
+  const showVectors = propShowVectors !== undefined ? propShowVectors : localShowVectors;
+  const activePreset = propCameraPreset !== undefined ? propCameraPreset : localActivePreset;
+
+  const toggleGrid = onToggleGrid || (() => setLocalShowGrid((v) => !v));
+  const togglePolarFootprint = onTogglePolarFootprint || (() => setLocalShowPolarFootprint((v) => !v));
+  const toggleVectors = onToggleVectors || (() => setLocalShowVectors((v) => !v));
 
   // Three.js scene refs
   const sceneContextRef = useRef<{
@@ -207,50 +236,65 @@ export function LunarGlobe3D({
   }, []);
 
   // Set up camera preset positioning
-  const applyCameraPreset = useCallback((preset: CameraPreset, site = selectedSite) => {
-    const ctx = sceneContextRef.current;
-    if (!ctx) return;
+  const applyCameraPreset = useCallback(
+    (preset: CameraPreset, site = selectedSite) => {
+      const ctx = sceneContextRef.current;
+      if (!ctx) return;
 
-    setActivePreset(preset);
-    const moonRadius = 1.45;
+      if (onCameraPresetChange) {
+        onCameraPresetChange(preset);
+      } else {
+        setLocalActivePreset(preset);
+      }
 
-    let targetCamPos: THREE.Vector3;
-    let targetLook: THREE.Vector3;
-    let targetUp: THREE.Vector3;
+      const moonRadius = 1.45;
 
-    if (preset === 'nadir') {
-      // Direct Nadir view of South Pole (matching 2D polar map orientation)
-      // Looking up from negative Y (-90°), with Up vector along +Z (0° Earth Prime Meridian)
-      targetCamPos = new THREE.Vector3(0, -3.4, 0.0001);
-      targetLook = new THREE.Vector3(0, 0, 0);
-      targetUp = new THREE.Vector3(0, 0, 1);
-    } else if (preset === 'oblique') {
-      // Perspective view looking across the South Pole towards the terminator
-      targetCamPos = new THREE.Vector3(0, -2.6, 2.2);
-      targetLook = new THREE.Vector3(0, -1.2, 0);
-      targetUp = new THREE.Vector3(0, 0.6, 0.8).normalize();
-    } else if (preset === 'site') {
-      // Focus on selected candidate site
-      const sitePos = latLonToVector3(site.coordinates.latitudeDeg, site.coordinates.longitudeDeg, moonRadius);
-      const siteNormal = sitePos.clone().normalize();
-      targetCamPos = sitePos.clone().add(siteNormal.clone().multiplyScalar(0.7)).add(new THREE.Vector3(0, 0.2, 0.2));
-      targetLook = sitePos.clone();
-      targetUp = new THREE.Vector3(0, 0, 1);
-    } else {
-      // Global Earth-facing view
-      targetCamPos = new THREE.Vector3(0, 0, 4.8);
-      targetLook = new THREE.Vector3(0, 0, 0);
-      targetUp = new THREE.Vector3(0, 1, 0);
+      let targetCamPos: THREE.Vector3;
+      let targetLook: THREE.Vector3;
+      let targetUp: THREE.Vector3;
+
+      if (preset === 'nadir') {
+        // Direct Nadir view of South Pole (matching 2D polar map orientation)
+        // Looking up from negative Y (-90°), with Up vector along +Z (0° Earth Prime Meridian)
+        targetCamPos = new THREE.Vector3(0, -3.4, 0.0001);
+        targetLook = new THREE.Vector3(0, 0, 0);
+        targetUp = new THREE.Vector3(0, 0, 1);
+      } else if (preset === 'oblique') {
+        // Perspective view looking across the South Pole towards the terminator
+        targetCamPos = new THREE.Vector3(0, -2.6, 2.2);
+        targetLook = new THREE.Vector3(0, -1.2, 0);
+        targetUp = new THREE.Vector3(0, 0.6, 0.8).normalize();
+      } else if (preset === 'site') {
+        // Focus on selected candidate site
+        const sitePos = latLonToVector3(site.coordinates.latitudeDeg, site.coordinates.longitudeDeg, moonRadius);
+        const siteNormal = sitePos.clone().normalize();
+        targetCamPos = sitePos.clone().add(siteNormal.clone().multiplyScalar(0.7)).add(new THREE.Vector3(0, 0.2, 0.2));
+        targetLook = sitePos.clone();
+        targetUp = new THREE.Vector3(0, 0, 1);
+      } else {
+        // Global Earth-facing view
+        targetCamPos = new THREE.Vector3(0, 0, 4.8);
+        targetLook = new THREE.Vector3(0, 0, 0);
+        targetUp = new THREE.Vector3(0, 1, 0);
+      }
+
+      ctx.transitionTarget = {
+        camPos: targetCamPos,
+        lookTarget: targetLook,
+        upVector: targetUp,
+        progress: 0,
+      };
+      ctx.isTransitioning = true;
+    },
+    [selectedSite, onCameraPresetChange]
+  );
+
+  // Sync external cameraPreset changes
+  useEffect(() => {
+    if (propCameraPreset && propCameraPreset !== localActivePreset) {
+      applyCameraPreset(propCameraPreset, selectedSite);
     }
-
-    ctx.transitionTarget = {
-      camPos: targetCamPos,
-      lookTarget: targetLook,
-      upVector: targetUp,
-      progress: 0,
-    };
-    ctx.isTransitioning = true;
-  }, [selectedSite]);
+  }, [propCameraPreset, applyCameraPreset, selectedSite, localActivePreset]);
 
   // Main Scene Initialization
   useEffect(() => {
@@ -347,7 +391,6 @@ export function LunarGlobe3D({
     let normalTexture: THREE.CanvasTexture | null = null;
 
     // Photometric Regolith Material:
-    // Non-specular, high roughness, realistic calibrated albedo, true LOLA topographic displacement and normal relief
     const moonMaterial = new THREE.MeshStandardMaterial({
       map: colorTexture,
       roughness: 0.94,
@@ -356,13 +399,11 @@ export function LunarGlobe3D({
     });
 
     topoImage.onload = () => {
-      // Create Three texture from loaded DEM
       topoTexture = new THREE.Texture(topoImage);
       topoTexture.needsUpdate = true;
       topoTexture.wrapS = THREE.RepeatWrapping;
       topoTexture.wrapT = THREE.ClampToEdgeWrapping;
 
-      // Generate in-memory normal map for high-contrast grazing crater shadows
       normalTexture = generateNormalMapFromImage(topoImage, 2.4);
 
       moonMaterial.displacementMap = topoTexture;
@@ -405,12 +446,11 @@ export function LunarGlobe3D({
     sunLight.shadow.bias = -0.0002;
     scene.add(sunLight);
 
-    // 2. Earthshine / Ambient Space Light:
-    // Allows surface detail on the unlit hemisphere to remain discernable without washing out deep shadows
+    // 2. Earthshine / Ambient Space Light
     const ambientLight = new THREE.AmbientLight(0x0a1220, 0.14);
     scene.add(ambientLight);
 
-    // 3. Earth Direct Reflection (sub-Earth point is near lat ~0, lon ~0)
+    // 3. Earth Direct Reflection
     const earthLight = new THREE.DirectionalLight(0x8ccbff, 0.22);
     earthLight.position.set(0, 0, 10);
     scene.add(earthLight);
@@ -421,7 +461,7 @@ export function LunarGlobe3D({
     const polarFootprintGroup = new THREE.Group();
     globeGroup.add(polarFootprintGroup);
 
-    // 1. Primary Boundary Ring: 83°S (exact coverage of the 2D Polar Stereographic Map)
+    // 1. Primary Boundary Ring: 83°S (exact coverage of 2D Polar Stereographic Map)
     const boundaryLat = -83;
     const boundaryPoints: THREE.Vector3[] = [];
     const segments = 96;
@@ -502,7 +542,7 @@ export function LunarGlobe3D({
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
       gridGroup.add(new THREE.Line(geo, lon === 0 ? primeMat : gridMat));
     });
-    gridGroup.visible = false;
+    gridGroup.visible = showGrid;
     globeGroup.add(gridGroup);
 
     // ----------------------------------------------------
@@ -627,7 +667,6 @@ export function LunarGlobe3D({
       isMouseDown = false;
 
       const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
-      // If user clicked without dragging, perform raycast candidate selection
       if (dist < 6 && containerRef.current && sceneContextRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -635,7 +674,6 @@ export function LunarGlobe3D({
 
         raycaster.setFromCamera(mouse, camera);
 
-        // Raycast against marker beacon spheres and rings
         const targets: THREE.Object3D[] = [];
         markersMap.forEach(({ beacon, ring }) => {
           targets.push(beacon);
@@ -698,8 +736,6 @@ export function LunarGlobe3D({
       if (ctx.isTransitioning && ctx.transitionTarget) {
         const tt = ctx.transitionTarget;
         tt.progress = Math.min(1.0, tt.progress + 0.04);
-        const t = 0.5 - 0.5 * Math.cos(tt.progress * Math.PI); // Ease in-out
-
         ctx.camera.position.lerp(tt.camPos, 0.08);
         ctx.camera.up.lerp(tt.upVector, 0.08);
         ctx.controls.target.lerp(tt.lookTarget, 0.08);
@@ -718,7 +754,7 @@ export function LunarGlobe3D({
     }
     animate();
 
-    // Resize Handler
+    // Resize Handler with ResizeObserver
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width: newW, height: newH } = entry.contentRect;
@@ -756,7 +792,6 @@ export function LunarGlobe3D({
     const ctx = sceneContextRef.current;
     if (!ctx) return;
 
-    // Sub-solar vector relative to Moon body
     const sunPos = latLonToVector3(subSolarLatDeg, subSolarLonDeg, 18.0);
     ctx.sunLight.position.copy(sunPos);
   }, [subSolarLatDeg, subSolarLonDeg]);
@@ -787,7 +822,6 @@ export function LunarGlobe3D({
     group.add(sunArrow);
 
     // 2. Direct-to-Earth Line of Sight (Cyan #8CCBFF)
-    // Sub-Earth point is near lat 0, lon 0
     const earthDir = latLonToVector3(0, 0, 1.0).normalize();
     const earthArrowLen = 0.55;
     const earthArrow = new THREE.ArrowHelper(earthDir, origin, earthArrowLen, 0x8ccbff, 0.08, 0.04);
@@ -802,20 +836,16 @@ export function LunarGlobe3D({
     ctx.markersMap.forEach(({ ring, beacon, stalk, badge, container, site }) => {
       const isSelected = site.id === selectedSite.id;
 
-      // Update ring
       (ring.material as THREE.MeshBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x8ccbff);
       (ring.material as THREE.MeshBasicMaterial).opacity = isSelected ? 0.95 : 0.5;
       ring.scale.setScalar(isSelected ? 1.5 : 1.0);
 
-      // Update beacon
       (beacon.material as THREE.MeshBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x8ccbff);
       beacon.scale.setScalar(isSelected ? 1.4 : 1.0);
 
-      // Update stalk
       (stalk.material as THREE.LineBasicMaterial).color.setHex(isSelected ? 0x70d6c5 : 0x64748b);
       (stalk.material as THREE.LineBasicMaterial).opacity = isSelected ? 0.95 : 0.45;
 
-      // Replace sprite badge with active styling
       container.remove(badge);
       badge.material.dispose();
       const newBadge = createTextBadge(site.code, isSelected);
@@ -848,7 +878,7 @@ export function LunarGlobe3D({
         <h3 className="text-base font-semibold text-[var(--lm-color-text-primary)]">
           WebGL Acceleration Unavailable
         </h3>
-        <p className="text-xs text-[var(--lm-color-text-secondary)] max-w-sm mt-1 mb-4">
+        <p className="text-xs text-[var(--lm-color-text-secondary)] max-w-sm mt-1 mb-4 leading-relaxed">
           The 3D lunar globe requires WebGL. Please use the high-precision 2D South-Pole Map or candidate selection ribbon below.
         </p>
       </div>
@@ -856,122 +886,122 @@ export function LunarGlobe3D({
   }
 
   return (
-    <div className="relative w-full h-full min-h-[460px] lg:min-h-[540px] flex flex-col bg-[var(--lm-color-canvas)] border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-lg)] overflow-hidden select-none">
-      {/* 3D Header Bar: Model Provenance, Camera Presets & Layer Toggles */}
-      <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        {/* Left: Scientific Asset Attribution & Projection Label */}
-        <div className="pointer-events-auto flex items-center gap-2 bg-[var(--lm-color-surface)]/90 backdrop-blur-xs px-2.5 py-1.5 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] shadow-xs">
-          <span className="text-xs font-semibold text-[var(--lm-color-text-primary)]">
-            NASA LRO Lunar Visualization
-          </span>
-          <span className="text-[10px] font-mono text-[var(--lm-color-selected-site)] border-l border-[var(--lm-color-border)] pl-2">
-            LROC Color + LOLA DEM Relief
-          </span>
-        </div>
-
-        {/* Right: Camera Presets & Layer Controls */}
-        <div className="pointer-events-auto flex items-center gap-1.5 bg-[var(--lm-color-surface)]/90 backdrop-blur-xs p-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] shadow-xs">
-          {/* Camera View Presets */}
-          <div className="flex items-center gap-1 border-r border-[var(--lm-color-border)] pr-1.5">
-            <button
-              type="button"
-              onClick={() => applyCameraPreset('nadir')}
-              title="South Pole Nadir (Matches 2D Polar Stereographic Map 1:1)"
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
-                activePreset === 'nadir'
-                  ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
-                  : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5 text-[var(--lm-color-selected-site)]" />
-              <span>South Pole Nadir</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyCameraPreset('oblique')}
-              title="Perspective view across South Pole crater rims and relief"
-              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
-                activePreset === 'oblique'
-                  ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
-                  : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>Oblique</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyCameraPreset('site')}
-              title="Fly to and focus on selected candidate site"
-              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
-                activePreset === 'site'
-                  ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
-                  : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
-              }`}
-            >
-              <Crosshair className="w-3.5 h-3.5" />
-              <span>Site Focus</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyCameraPreset('global')}
-              title="Global Lunar Sphere Overview"
-              className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
-                activePreset === 'global'
-                  ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
-                  : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
-              }`}
-            >
-              Global
-            </button>
+    <div className="relative w-full h-full flex flex-col bg-[var(--lm-color-canvas)] border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-lg)] overflow-hidden select-none min-h-0">
+      {/* 3D Header Bar (rendered only if not hidden by unified workspace) */}
+      {!hideHeader && (
+        <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-2 bg-[var(--lm-color-surface)]/90 backdrop-blur-xs px-2.5 py-1.5 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] shadow-xs">
+            <span className="text-xs font-semibold text-[var(--lm-color-text-primary)]">
+              NASA LRO Lunar Visualization
+            </span>
+            <span className="text-[10px] font-mono text-[var(--lm-color-selected-site)] border-l border-[var(--lm-color-border)] pl-2">
+              LROC Color + LOLA DEM Relief
+            </span>
           </div>
 
-          {/* Layer Toggles */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setShowPolarFootprint(!showPolarFootprint)}
-              title="Toggle 2D Polar Map Boundary Circle (83°S Footprint)"
-              className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
-                showPolarFootprint
-                  ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/40 font-semibold'
-                  : 'text-[var(--lm-color-text-muted)] hover:text-white'
-              }`}
-            >
-              2D Extent
-            </button>
+          <div className="pointer-events-auto flex items-center gap-1.5 bg-[var(--lm-color-surface)]/90 backdrop-blur-xs p-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] shadow-xs">
+            {/* Camera View Presets */}
+            <div className="flex items-center gap-1 border-r border-[var(--lm-color-border)] pr-1.5">
+              <button
+                type="button"
+                onClick={() => applyCameraPreset('nadir')}
+                title="South Pole Nadir"
+                className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                  activePreset === 'nadir'
+                    ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
+                    : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5 text-[var(--lm-color-selected-site)]" />
+                <span>Nadir</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShowVectors(!showVectors)}
-              title="Toggle Celestial Direction Rays (Sun & Earth line-of-sight in 3D)"
-              className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
-                showVectors
-                  ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-sun)] border border-[var(--lm-color-sun)]/40 font-semibold'
-                  : 'text-[var(--lm-color-text-muted)] hover:text-white'
-              }`}
-            >
-              Vectors
-            </button>
+              <button
+                type="button"
+                onClick={() => applyCameraPreset('oblique')}
+                title="Perspective view across South Pole crater rims and relief"
+                className={`flex items-center gap-1 px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                  activePreset === 'oblique'
+                    ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
+                    : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Oblique</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShowGrid(!showGrid)}
-              title="Toggle Selenographic Coordinate Graticule"
-              className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
-                showGrid
-                  ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-primary)] border border-[var(--lm-color-border)]'
-                  : 'text-[var(--lm-color-text-muted)] hover:text-white'
-              }`}
-            >
-              Grid
-            </button>
+              <button
+                type="button"
+                onClick={() => applyCameraPreset('site')}
+                title="Fly to and focus on selected candidate site"
+                className={`flex items-center gap-1 px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                  activePreset === 'site'
+                    ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
+                    : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
+                }`}
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+                <span>Site</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => applyCameraPreset('global')}
+                title="Global Lunar Sphere Overview"
+                className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                  activePreset === 'global'
+                    ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
+                    : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
+                }`}
+              >
+                Global
+              </button>
+            </div>
+
+            {/* Layer Toggles */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={togglePolarFootprint}
+                title="Toggle 2D Polar Map Boundary Circle (83°S Footprint)"
+                className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                  showPolarFootprint
+                    ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/40 font-semibold'
+                    : 'text-[var(--lm-color-text-muted)] hover:text-white'
+                }`}
+              >
+                2D Extent
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleVectors}
+                title="Toggle Celestial Direction Rays"
+                className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                  showVectors
+                    ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-sun)] border border-[var(--lm-color-sun)]/40 font-semibold'
+                    : 'text-[var(--lm-color-text-muted)] hover:text-white'
+                }`}
+              >
+                Vectors
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleGrid}
+                title="Toggle Selenographic Coordinate Graticule"
+                className={`px-2 py-1 text-xs rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                  showGrid
+                    ? 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-primary)] border border-[var(--lm-color-border)]'
+                    : 'text-[var(--lm-color-text-muted)] hover:text-white'
+                }`}
+              >
+                Grid
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Loading Overlay */}
       {isLoading && (
@@ -995,7 +1025,7 @@ export function LunarGlobe3D({
       )}
 
       {/* 3D Canvas Mount Point */}
-      <div ref={containerRef} className="w-full h-full flex-1 cursor-grab active:cursor-grabbing" />
+      <div ref={containerRef} className="w-full h-full flex-1 cursor-grab active:cursor-grabbing min-h-0" />
 
       {/* Hovered Candidate Site Tooltip */}
       {hoveredSite && (
@@ -1015,11 +1045,11 @@ export function LunarGlobe3D({
       )}
 
       {/* Scientific Overlay Legend / Orientation Helper */}
-      <div className="absolute bottom-14 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+      <div className={`absolute ${hideRibbon ? 'bottom-3' : 'bottom-14'} left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none`}>
         <div className="bg-[var(--lm-color-surface)]/85 backdrop-blur-xs px-2.5 py-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] text-[10px] font-mono text-[var(--lm-color-text-muted)] flex items-center gap-3">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[var(--lm-color-sun)] inline-block"></span>
-            <span>Sun Vector (Grazing Angle)</span>
+            <span>Sun Vector</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[var(--lm-color-earth)] inline-block"></span>
@@ -1027,43 +1057,45 @@ export function LunarGlobe3D({
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-0.5 border-b border-dashed border-[var(--lm-color-selected-site)] inline-block"></span>
-            <span>83°S Polar Map Extent</span>
+            <span>83°S Footprint</span>
           </span>
         </div>
 
-        <div className="bg-[var(--lm-color-surface)]/85 backdrop-blur-xs px-2.5 py-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] text-[10px] font-mono text-[var(--lm-color-text-muted)]">
+        <div className="hidden sm:block bg-[var(--lm-color-surface)]/85 backdrop-blur-xs px-2.5 py-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] text-[10px] font-mono text-[var(--lm-color-text-muted)]">
           Source: NASA GSFC CGI Moon Kit (LROC WAC / LOLA DEM 128ppd)
         </div>
       </div>
 
-      {/* Candidate Quick Selection Ribbon below Globe */}
-      <div className="bg-[var(--lm-color-surface)] border-t border-[var(--lm-color-border-subtle)] p-2.5 flex items-center gap-2 overflow-x-auto z-10">
-        <span className="text-[11px] font-mono text-[var(--lm-color-text-muted)] shrink-0 uppercase tracking-wider">
-          Candidate Sites:
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {CANDIDATE_SITES.map((site) => {
-            const isSelected = site.id === selectedSite.id;
-            return (
-              <button
-                key={site.id}
-                type="button"
-                onClick={() => {
-                  onSelectSite(site);
-                  applyCameraPreset('site', site);
-                }}
-                className={`px-2.5 py-1 text-xs font-mono-num rounded-[var(--lm-radius-sm)] transition-colors ${
-                  isSelected
-                    ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)] font-semibold shadow-xs'
-                    : 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-secondary)] border border-[var(--lm-color-border)] hover:text-white hover:bg-[var(--lm-color-surface-strong)]'
-                }`}
-              >
-                {site.name}
-              </button>
-            );
-          })}
+      {/* Candidate Quick Selection Ribbon below Globe (rendered only if not hidden by unified workspace) */}
+      {!hideRibbon && (
+        <div className="bg-[var(--lm-color-surface)] border-t border-[var(--lm-color-border-subtle)] p-2.5 flex items-center gap-2 overflow-x-auto z-10 shrink-0">
+          <span className="text-[11px] font-mono text-[var(--lm-color-text-muted)] shrink-0 uppercase tracking-wider">
+            Candidate Sites:
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {CANDIDATE_SITES.map((site) => {
+              const isSelected = site.id === selectedSite.id;
+              return (
+                <button
+                  key={site.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectSite(site);
+                    applyCameraPreset('site', site);
+                  }}
+                  className={`px-2.5 py-1 text-xs font-mono-num rounded-[var(--lm-radius-sm)] transition-colors ${
+                    isSelected
+                      ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)] font-semibold shadow-xs'
+                      : 'bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-secondary)] border border-[var(--lm-color-border)] hover:text-white hover:bg-[var(--lm-color-surface-strong)]'
+                  }`}
+                >
+                  {site.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

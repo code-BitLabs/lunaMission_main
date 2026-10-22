@@ -256,6 +256,19 @@ export function PointPassport({
           earthAzimuthDeg={earthAzVal}
           terrainElevationDeg={terrainElevVal}
           calculationMode={calculationMode}
+          meanTerrainHorizonDeg={site.meanTerrainHorizonDeg}
+          maxTerrainObstructionDeg={site.maxTerrainObstructionDeg}
+          solarIlluminationFraction={
+            conditions.solarIlluminationFraction.kind === 'available'
+              ? conditions.solarIlluminationFraction.value
+              : 1.0
+          }
+          earthRangeKm={conditions.rangeKm.kind === 'available' ? conditions.rangeKm.value : 384400}
+          lightTimeSeconds={
+            conditions.theoreticalOneWayLightTimeSeconds.kind === 'available'
+              ? conditions.theoreticalOneWayLightTimeSeconds.value
+              : 1.28
+          }
         />
       </section>
 
