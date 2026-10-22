@@ -24,6 +24,9 @@ export interface LunarGlobe3DProps {
   onSelectSite: (site: CandidateSite) => void;
   subSolarLatDeg: number;
   subSolarLonDeg: number;
+  subEarthLatDeg?: number;
+  subEarthLonDeg?: number;
+  earthElevationDeg?: number;
   showGrid?: boolean;
   showPolarFootprint?: boolean;
   showVectors?: boolean;
@@ -115,6 +118,9 @@ export function LunarGlobe3D({
   onSelectSite,
   subSolarLatDeg,
   subSolarLonDeg,
+  subEarthLatDeg = 0,
+  subEarthLonDeg = 0,
+  earthElevationDeg = 0,
   showGrid: propShowGrid,
   showPolarFootprint: propShowPolarFootprint,
   showVectors: propShowVectors,
@@ -787,16 +793,19 @@ export function LunarGlobe3D({
     };
   }, [createTextBadge, onSelectSite]);
 
-  // Synchronize Sub-Solar Position (grazing sunlight vector matching canonical epoch)
+  // Synchronize Sub-Solar Position and Sub-Earth Lighting matching canonical epoch
   useEffect(() => {
     const ctx = sceneContextRef.current;
     if (!ctx) return;
 
     const sunPos = latLonToVector3(subSolarLatDeg, subSolarLonDeg, 18.0);
     ctx.sunLight.position.copy(sunPos);
-  }, [subSolarLatDeg, subSolarLonDeg]);
 
-  // Update 3D Celestial Vectors (Sun beam & Earth LOS line)
+    const earthLightPos = latLonToVector3(subEarthLatDeg, subEarthLonDeg, 15.0);
+    ctx.earthLight.position.copy(earthLightPos);
+  }, [subSolarLatDeg, subSolarLonDeg, subEarthLatDeg, subEarthLonDeg]);
+
+  // Update 3D Celestial Vectors (Sun beam, Earth LOS line, 3D Earth Planet, and DTE Link)
   useEffect(() => {
     const ctx = sceneContextRef.current;
     if (!ctx) return;
@@ -821,12 +830,54 @@ export function LunarGlobe3D({
     const sunArrow = new THREE.ArrowHelper(sunDir, origin, sunArrowLen, 0xf3cc70, 0.08, 0.04);
     group.add(sunArrow);
 
-    // 2. Direct-to-Earth Line of Sight (Cyan #8CCBFF)
-    const earthDir = latLonToVector3(0, 0, 1.0).normalize();
+    // 2. Direct-to-Earth Line of Sight (Cyan #8CCBFF) pointing at authentic Sub-Earth libration coordinates
+    const earthDir = latLonToVector3(subEarthLatDeg, subEarthLonDeg, 1.0).normalize();
     const earthArrowLen = 0.55;
     const earthArrow = new THREE.ArrowHelper(earthDir, origin, earthArrowLen, 0x8ccbff, 0.08, 0.04);
     group.add(earthArrow);
-  }, [selectedSite, subSolarLatDeg, subSolarLonDeg, showVectors]);
+
+    // 3. Visible 3D Earth Celestial Sphere in Space (moving with real libration)
+    const earthOrbDist = 4.2;
+    const earthOrbPos = latLonToVector3(subEarthLatDeg, subEarthLonDeg, earthOrbDist);
+
+    const earthGeom = new THREE.SphereGeometry(0.24, 24, 24);
+    const earthMat = new THREE.MeshPhongMaterial({
+      color: 0x1d4ed8,
+      emissive: 0x0f2a63,
+      shininess: 35,
+      specular: 0x60a5fa,
+    });
+    const earthMesh = new THREE.Mesh(earthGeom, earthMat);
+    earthMesh.position.copy(earthOrbPos);
+    group.add(earthMesh);
+
+    // Atmospheric Glow Shell for Earth
+    const atmosGeom = new THREE.SphereGeometry(0.28, 24, 24);
+    const atmosMat = new THREE.MeshBasicMaterial({
+      color: 0x8ccbff,
+      transparent: true,
+      opacity: 0.35,
+      wireframe: true,
+    });
+    const atmosMesh = new THREE.Mesh(atmosGeom, atmosMat);
+    atmosMesh.position.copy(earthOrbPos);
+    group.add(atmosMesh);
+
+    // 4. Direct-to-Earth (DTE) Communication Link Line from Site to Earth in Space
+    const isVisibleLos = earthElevationDeg > 0;
+    const dtePoints = [origin, earthOrbPos];
+    const dteGeom = new THREE.BufferGeometry().setFromPoints(dtePoints);
+    const dteMat = new THREE.LineDashedMaterial({
+      color: isVisibleLos ? 0x8ccbff : 0xf59e0b,
+      dashSize: isVisibleLos ? 0.15 : 0.06,
+      gapSize: isVisibleLos ? 0.06 : 0.08,
+      transparent: true,
+      opacity: isVisibleLos ? 0.85 : 0.45,
+    });
+    const dteLine = new THREE.Line(dteGeom, dteMat);
+    dteLine.computeLineDistances();
+    group.add(dteLine);
+  }, [selectedSite, subSolarLatDeg, subSolarLonDeg, subEarthLatDeg, subEarthLonDeg, earthElevationDeg, showVectors]);
 
   // Synchronize Site Marker Highlights when selected site changes
   useEffect(() => {
@@ -1053,7 +1104,7 @@ export function LunarGlobe3D({
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[var(--lm-color-earth)] inline-block"></span>
-            <span>Earth LOS (Prime Meridian 0°)</span>
+            <span>Earth [DTE] ({earthElevationDeg >= 0 ? '+' : ''}{earthElevationDeg.toFixed(1)}° elev)</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-0.5 border-b border-dashed border-[var(--lm-color-selected-site)] inline-block"></span>

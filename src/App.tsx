@@ -31,6 +31,8 @@ export default function App() {
 
   const sunAzVal = conditions.sunAzimuthDeg.kind === 'available' ? conditions.sunAzimuthDeg.value : 0;
   const earthAzVal = conditions.earthAzimuthDeg.kind === 'available' ? conditions.earthAzimuthDeg.value : 0;
+  const sunElevVal = conditions.sunElevationDeg.kind === 'available' ? conditions.sunElevationDeg.value : 0;
+  const earthElevVal = conditions.earthElevationDeg.kind === 'available' ? conditions.earthElevationDeg.value : 0;
 
   function handleSelectSiteForExplore(site: CandidateSite) {
     setSelectedSite(site);
@@ -62,8 +64,12 @@ export default function App() {
               onOpenMethodDetails={() => setActiveTab('method')}
               sunAzimuthDeg={sunAzVal}
               earthAzimuthDeg={earthAzVal}
+              sunElevationDeg={sunElevVal}
+              earthElevationDeg={earthElevVal}
               subSolarLatDeg={globalEphemeris.subSolarLatDeg}
               subSolarLonDeg={globalEphemeris.subSolarLonDeg}
+              subEarthLatDeg={globalEphemeris.subEarthLatDeg}
+              subEarthLonDeg={globalEphemeris.subEarthLonDeg}
               currentIsoUtc={currentIsoUtc}
             />
 

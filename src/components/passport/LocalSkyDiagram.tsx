@@ -9,6 +9,7 @@ interface LocalSkyDiagramProps {
   earthElevationDeg: number;
   earthAzimuthDeg: number;
   terrainElevationDeg: number;
+  earthTerrainElevationDeg?: number;
   calculationMode: CalculationMode;
   meanTerrainHorizonDeg?: number;
   maxTerrainObstructionDeg?: number;
@@ -23,6 +24,7 @@ export function LocalSkyDiagram({
   earthElevationDeg,
   earthAzimuthDeg,
   terrainElevationDeg,
+  earthTerrainElevationDeg,
   calculationMode,
   meanTerrainHorizonDeg = 0.5,
   maxTerrainObstructionDeg = 1.8,
@@ -64,8 +66,9 @@ export function LocalSkyDiagram({
   const earthY = elevToY(earthElevationDeg);
 
   // Clearance calculations
+  const effectiveEarthTerrain = earthTerrainElevationDeg !== undefined ? earthTerrainElevationDeg : terrainElevationDeg;
   const sunClearance = sunElevationDeg - terrainElevationDeg;
-  const earthClearance = earthElevationDeg - terrainElevationDeg;
+  const earthClearance = earthElevationDeg - effectiveEarthTerrain;
 
   // Build terrain horizon silhouette across 360 degrees
   const terrainPoints: string[] = [];
@@ -211,6 +214,18 @@ export function LocalSkyDiagram({
             );
           })}
 
+          {/* Earth Vertical Drop Line to Horizon */}
+          <line
+            x1={earthX}
+            y1={earthY}
+            x2={earthX}
+            y2={zeroY}
+            stroke="#8ccbff"
+            strokeWidth="1.2"
+            strokeDasharray="2 2"
+            opacity="0.6"
+          />
+
           {/* Earth Disk Marker */}
           <g>
             <circle cx={earthX} cy={earthY} r="12" fill="url(#earth-glow)" />
@@ -227,6 +242,18 @@ export function LocalSkyDiagram({
               Earth ({formatAngle(earthElevationDeg, { decimals: 2, sign: true })})
             </text>
           </g>
+
+          {/* Sun Vertical Drop Line to Horizon */}
+          <line
+            x1={sunX}
+            y1={sunY}
+            x2={sunX}
+            y2={zeroY}
+            stroke="#ffb830"
+            strokeWidth="1.2"
+            strokeDasharray="2 2"
+            opacity="0.6"
+          />
 
           {/* Sun Disk Marker */}
           <g>

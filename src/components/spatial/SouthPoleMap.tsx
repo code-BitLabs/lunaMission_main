@@ -8,6 +8,10 @@ export interface SouthPoleMapProps {
   onSelectSite: (site: CandidateSite) => void;
   sunAzimuthDeg: number;
   earthAzimuthDeg: number;
+  earthElevationDeg?: number;
+  subEarthLonDeg?: number;
+  subEarthLatDeg?: number;
+  sunElevationDeg?: number;
   showGrid?: boolean;
   showPsr?: boolean;
   showVectors?: boolean;
@@ -42,6 +46,10 @@ export function SouthPoleMap({
   onSelectSite,
   sunAzimuthDeg,
   earthAzimuthDeg,
+  earthElevationDeg = 0,
+  subEarthLonDeg = 0,
+  subEarthLatDeg = 0,
+  sunElevationDeg = 0,
   showGrid: propShowGrid,
   showPsr: propShowPsr,
   showVectors: propShowVectors,
@@ -113,16 +121,27 @@ export function SouthPoleMap({
     setIsDragging(false);
   }
 
-  // Calculate direction arrow endpoints for Sun and Earth
+  // Calculate direction arrow endpoints for Sun and Earth from the Pole
   const sunArrowAngleRad = (sunAzimuthDeg - 90) * (Math.PI / 180);
   const sunRayLength = MAX_RADIUS + 15;
   const sunX = CENTER + sunRayLength * Math.cos(sunArrowAngleRad);
   const sunY = CENTER + sunRayLength * Math.sin(sunArrowAngleRad);
 
-  const earthArrowAngleRad = (earthAzimuthDeg - 90) * (Math.PI / 180);
+  const effectiveEarthLon = subEarthLonDeg !== undefined ? subEarthLonDeg : earthAzimuthDeg;
+  const earthArrowAngleRad = (effectiveEarthLon - 90) * (Math.PI / 180);
   const earthRayLength = MAX_RADIUS + 15;
   const earthX = CENTER + earthRayLength * Math.cos(earthArrowAngleRad);
   const earthY = CENTER + earthRayLength * Math.sin(earthArrowAngleRad);
+
+  // Calculate site-specific topocentric vectors emitting directly from selected site
+  const sitePos = project(selectedSite.coordinates.latitudeDeg, selectedSite.coordinates.longitudeDeg);
+  const siteSunAngleRad = (sunAzimuthDeg - 90) * (Math.PI / 180);
+  const siteSunX = sitePos.x + 38 * Math.cos(siteSunAngleRad);
+  const siteSunY = sitePos.y + 38 * Math.sin(siteSunAngleRad);
+
+  const siteEarthAngleRad = (earthAzimuthDeg - 90) * (Math.PI / 180);
+  const siteEarthX = sitePos.x + 38 * Math.cos(siteEarthAngleRad);
+  const siteEarthY = sitePos.y + 38 * Math.sin(siteEarthAngleRad);
 
   return (
     <div className="relative w-full h-full flex flex-col bg-[var(--lm-color-canvas)] border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-lg)] overflow-hidden select-none min-h-0">
@@ -357,7 +376,7 @@ export function SouthPoleMap({
             {/* Celestial Direction Vectors (Sun and Earth rays) */}
             {showVectors && (
               <g className="celestial-vectors">
-                {/* Sun Vector (Solar Gold) */}
+                {/* 1. Global Sun Vector from Pole (Solar Gold) */}
                 <line
                   x1={CENTER}
                   y1={CENTER}
@@ -379,33 +398,69 @@ export function SouthPoleMap({
                   fontWeight="600"
                   fontFamily="monospace"
                 >
-                  ☀ Sun
+                  ☀ Sun ({sunElevationDeg >= 0 ? '+' : ''}{sunElevationDeg.toFixed(1)}°)
                 </text>
 
-                {/* Earth Vector (Earth Blue) */}
+                {/* 2. Global Earth Vector from Pole (Earth Blue) */}
                 <line
                   x1={CENTER}
                   y1={CENTER}
                   x2={earthX}
                   y2={earthY}
-                  stroke="var(--lm-color-earth)"
+                  stroke={earthElevationDeg > 0 ? 'var(--lm-color-earth)' : '#f59e0b'}
                   strokeWidth="1.6"
-                  strokeDasharray="4 3"
+                  strokeDasharray={earthElevationDeg > 0 ? '4 3' : '2 3'}
                   opacity="0.9"
                 />
-                <circle cx={earthX} cy={earthY} r="4.5" fill="var(--lm-color-earth)" />
+                <circle
+                  cx={earthX}
+                  cy={earthY}
+                  r="4.5"
+                  fill={earthElevationDeg > 0 ? 'var(--lm-color-earth)' : '#f59e0b'}
+                />
                 <text
                   x={earthX}
                   y={earthY + 3}
                   dx={earthX > CENTER ? 8 : -8}
                   textAnchor={earthX > CENTER ? 'start' : 'end'}
-                  fill="var(--lm-color-earth)"
+                  fill={earthElevationDeg > 0 ? 'var(--lm-color-earth)' : '#f59e0b'}
                   fontSize="9.5"
                   fontWeight="600"
                   fontFamily="monospace"
                 >
-                  ⊕ Earth
+                  ⊕ Earth ({earthElevationDeg >= 0 ? '+' : ''}{earthElevationDeg.toFixed(1)}°)
                 </text>
+
+                {/* 3. Site Topocentric Vectors emitting from the candidate site */}
+                <g className="site-topocentric-rays">
+                  <line
+                    x1={sitePos.x}
+                    y1={sitePos.y}
+                    x2={siteSunX}
+                    y2={siteSunY}
+                    stroke="var(--lm-color-sun)"
+                    strokeWidth="1.8"
+                    opacity="0.85"
+                  />
+                  <circle cx={siteSunX} cy={siteSunY} r="2.5" fill="var(--lm-color-sun)" />
+
+                  <line
+                    x1={sitePos.x}
+                    y1={sitePos.y}
+                    x2={siteEarthX}
+                    y2={siteEarthY}
+                    stroke={earthElevationDeg > 0 ? 'var(--lm-color-earth)' : '#f59e0b'}
+                    strokeWidth="1.8"
+                    strokeDasharray={earthElevationDeg > 0 ? undefined : '2 2'}
+                    opacity="0.95"
+                  />
+                  <circle
+                    cx={siteEarthX}
+                    cy={siteEarthY}
+                    r="2.5"
+                    fill={earthElevationDeg > 0 ? 'var(--lm-color-earth)' : '#f59e0b'}
+                  />
+                </g>
               </g>
             )}
 

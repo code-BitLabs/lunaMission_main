@@ -63,6 +63,10 @@ export function PointPassport({
     conditions.localTerrainElevationAtSunAzimuthDeg.kind === 'available'
       ? conditions.localTerrainElevationAtSunAzimuthDeg.value
       : 0;
+  const earthTerrainElevVal =
+    conditions.localTerrainElevationAtEarthAzimuthDeg.kind === 'available'
+      ? conditions.localTerrainElevationAtEarthAzimuthDeg.value
+      : 0;
 
   return (
     <div className="flex flex-col gap-3.5 bg-[var(--lm-color-surface-raised)]/40 border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-md)] p-4 sm:p-5 w-full min-w-0">
@@ -255,6 +259,7 @@ export function PointPassport({
           earthElevationDeg={earthElevVal}
           earthAzimuthDeg={earthAzVal}
           terrainElevationDeg={terrainElevVal}
+          earthTerrainElevationDeg={earthTerrainElevVal}
           calculationMode={calculationMode}
           meanTerrainHorizonDeg={site.meanTerrainHorizonDeg}
           maxTerrainObstructionDeg={site.maxTerrainObstructionDeg}

@@ -32,6 +32,10 @@ export interface SpatialWorkspaceProps {
   earthAzimuthDeg: number;
   subSolarLatDeg: number;
   subSolarLonDeg: number;
+  subEarthLatDeg?: number;
+  subEarthLonDeg?: number;
+  earthElevationDeg?: number;
+  sunElevationDeg?: number;
   currentIsoUtc?: string;
 }
 
@@ -46,6 +50,10 @@ export function SpatialWorkspace({
   earthAzimuthDeg,
   subSolarLatDeg,
   subSolarLonDeg,
+  subEarthLatDeg = 0,
+  subEarthLonDeg = 0,
+  earthElevationDeg = 0,
+  sunElevationDeg = 0,
   currentIsoUtc,
 }: SpatialWorkspaceProps) {
   const [viewMode, setViewMode] = useState<SpatialViewMode>('map2d');
@@ -149,6 +157,10 @@ export function SpatialWorkspace({
             onSelectSite={onSelectSite}
             sunAzimuthDeg={sunAzimuthDeg}
             earthAzimuthDeg={earthAzimuthDeg}
+            earthElevationDeg={earthElevationDeg}
+            sunElevationDeg={sunElevationDeg}
+            subEarthLonDeg={subEarthLonDeg}
+            subEarthLatDeg={subEarthLatDeg}
             showGrid={showGrid}
             showPsr={showPsr}
             showVectors={showVectors}
@@ -172,6 +184,9 @@ export function SpatialWorkspace({
               onSelectSite={onSelectSite}
               subSolarLatDeg={subSolarLatDeg}
               subSolarLonDeg={subSolarLonDeg}
+              subEarthLatDeg={subEarthLatDeg}
+              subEarthLonDeg={subEarthLonDeg}
+              earthElevationDeg={earthElevationDeg}
               showGrid={showGrid}
               showPolarFootprint={showPsr}
               showVectors={showVectors}
@@ -200,6 +215,10 @@ export function SpatialWorkspace({
                 onSelectSite={onSelectSite}
                 sunAzimuthDeg={sunAzimuthDeg}
                 earthAzimuthDeg={earthAzimuthDeg}
+                earthElevationDeg={earthElevationDeg}
+                sunElevationDeg={sunElevationDeg}
+                subEarthLonDeg={subEarthLonDeg}
+                subEarthLatDeg={subEarthLatDeg}
                 showGrid={showGrid}
                 showPsr={showPsr}
                 showVectors={showVectors}
@@ -227,6 +246,9 @@ export function SpatialWorkspace({
                   onSelectSite={onSelectSite}
                   subSolarLatDeg={subSolarLatDeg}
                   subSolarLonDeg={subSolarLonDeg}
+                  subEarthLatDeg={subEarthLatDeg}
+                  subEarthLonDeg={subEarthLonDeg}
+                  earthElevationDeg={earthElevationDeg}
                   showGrid={showGrid}
                   showPolarFootprint={showPsr}
                   showVectors={showVectors}
