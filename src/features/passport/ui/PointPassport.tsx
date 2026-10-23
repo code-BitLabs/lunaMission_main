@@ -1,0 +1,42 @@
+import React from 'react';
+import { ExternalLink, ShieldCheck } from 'lucide-react';
+import { PassportSiteHeader } from '@/features/passport/components/summary/PassportSiteHeader';
+import { PassportSunSection } from '@/features/passport/components/summary/PassportSunSection';
+import { PassportEarthSection } from '@/features/passport/components/summary/PassportEarthSection';
+import { LocalSkyDiagram } from '@/features/passport/components/local-sky/LocalSkyDiagram';
+
+interface PointPassportProps {
+  /** App-level navigation: opening the Method & Provenance tab is not scenario state. */
+  onOpenMethodDetails: () => void;
+}
+
+export function PointPassport({ onOpenMethodDetails }: PointPassportProps) {
+  return (
+    <div className="flex flex-col gap-3.5 bg-[var(--lm-color-surface-raised)]/40 border border-[var(--lm-color-border-subtle)] rounded-[var(--lm-radius-md)] p-4 sm:p-5 w-full min-w-0">
+      <PassportSiteHeader />
+      <PassportSunSection />
+      <PassportEarthSection />
+
+      {/* Local Sky Cross-Section Diagram */}
+      <section>
+        <LocalSkyDiagram />
+      </section>
+
+      {/* Provenance and Verification Footer Strip */}
+      <div className="pt-2 border-t border-[var(--lm-color-border-subtle)] flex items-center justify-between text-xs text-[var(--lm-color-text-muted)] font-mono">
+        <span className="flex items-center gap-1.5 text-[var(--lm-color-success)]">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>JPL Horizons Benchmark Verified</span>
+        </span>
+        <button
+          type="button"
+          onClick={onOpenMethodDetails}
+          className="flex items-center gap-1 text-[var(--lm-color-text-secondary)] hover:text-white transition-colors underline underline-offset-2"
+        >
+          <span>Method & Provenance</span>
+          <ExternalLink className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
