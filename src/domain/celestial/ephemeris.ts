@@ -46,11 +46,16 @@ export function calculateLunarEphemeris(julianDate: number): LunarEphemerisVecto
   // Moon's argument of latitude (distance from ascending node)
   const F_moon = ((93.272 + 13.229350 * d) % 360) * (Math.PI / 180);
 
+  // Longitude of ascending node of lunar orbit: Omega = L_moon - F_moon
+  // (Nodal precession period: 18.61 years = 6798 days, rate ~ -0.05295 deg/day)
+  const Omega_node = ((125.0445 - 0.0529538083 * d) % 360) * (Math.PI / 180);
+
   // Lunar obliquity to ecliptic is approx 1.5424 degrees
   const MOON_OBLIQUITY_RAD = 1.5424 * (Math.PI / 180);
 
   // Sub-solar latitude on Moon (seasonal tilt of lunar pole to Sun, ~ +/- 1.54 deg)
-  const subSolarLatRad = -MOON_OBLIQUITY_RAD * Math.sin(lambda_sun - F_moon);
+  // Depends on Sun's ecliptic longitude relative to lunar orbital ascending node (Meeus Ch. 53)
+  const subSolarLatRad = -MOON_OBLIQUITY_RAD * Math.sin(lambda_sun - Omega_node);
   const subSolarLatDeg = subSolarLatRad * (180 / Math.PI);
 
   // Sub-solar longitude on Moon (rotates ~360 deg every 29.530588 synodic days)

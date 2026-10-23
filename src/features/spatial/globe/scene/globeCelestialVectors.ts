@@ -10,6 +10,8 @@ const SUN_VECTOR_COLOR = 0xf59e0b;
 const EARTH_VECTOR_COLOR = 0x38bdf8;
 /** Warning amber DTE link when Earth is below the local geometric horizon. */
 const BLOCKED_LINK_COLOR = 0xf59e0b;
+/** Muted slate link when Earth elevation is unavailable/unknown. */
+const UNKNOWN_LINK_COLOR = 0x94a3b8;
 
 const VECTOR_ORIGIN_LIFT = 1.018;
 
@@ -296,28 +298,45 @@ export function renderCelestialVectors(group: THREE.Group, input: CelestialVecto
   atmosphereMesh.position.copy(earthOrbPos);
   group.add(atmosphereMesh);
 
-  // Line of sight: Above horizon is active blue; below horizon is amber warning
-  const hasLineOfSight = input.earthElevationDeg !== null && input.earthElevationDeg > 0;
-  const earthStatusText = hasLineOfSight
-    ? '⊕ EARTH • DTE LINK'
-    : '⊕ EARTH [SUB-HORIZON]';
+  // Line of sight: Above horizon is active blue; confirmed below horizon is amber warning; unknown is neutral slate
+  const isElevationKnown = input.earthElevationDeg !== null;
+  const hasLineOfSight = isElevationKnown && input.earthElevationDeg > 0;
 
-  const earthLabel = createCelestialLabel(
-    earthStatusText,
-    hasLineOfSight ? '#38bdf8' : '#f59e0b'
-  );
+  const earthStatusText = !isElevationKnown
+    ? '⊕ EARTH [ELEVATION UNKNOWN]'
+    : hasLineOfSight
+      ? '⊕ EARTH • GEOMETRIC SIGHTLINE'
+      : '⊕ EARTH [SUB-HORIZON]';
+
+  const earthLabelColor = !isElevationKnown
+    ? '#94a3b8'
+    : hasLineOfSight
+      ? '#38bdf8'
+      : '#f59e0b';
+
+  const earthLabel = createCelestialLabel(earthStatusText, earthLabelColor);
   earthLabel.position.copy(earthOrbPos.clone().add(new THREE.Vector3(0, 0.28, 0)));
   group.add(earthLabel);
 
-  // Direct-To-Earth (DTE) communication link ray
+  // Direct-To-Earth geometric sightline ray
+  const linkColor = !isElevationKnown
+    ? UNKNOWN_LINK_COLOR
+    : hasLineOfSight
+      ? EARTH_VECTOR_COLOR
+      : BLOCKED_LINK_COLOR;
+
+  const linkDash = hasLineOfSight ? LINK_OPEN_DASH : LINK_BLOCKED_DASH;
+  const linkGap = hasLineOfSight ? LINK_OPEN_GAP : LINK_BLOCKED_GAP;
+  const linkOpacity = !isElevationKnown ? 0.35 : hasLineOfSight ? LINK_OPEN_OPACITY : LINK_BLOCKED_OPACITY;
+
   const linkLine = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([origin, earthOrbPos]),
     new THREE.LineDashedMaterial({
-      color: hasLineOfSight ? EARTH_VECTOR_COLOR : BLOCKED_LINK_COLOR,
-      dashSize: hasLineOfSight ? LINK_OPEN_DASH : LINK_BLOCKED_DASH,
-      gapSize: hasLineOfSight ? LINK_OPEN_GAP : LINK_BLOCKED_GAP,
+      color: linkColor,
+      dashSize: linkDash,
+      gapSize: linkGap,
       transparent: true,
-      opacity: hasLineOfSight ? LINK_OPEN_OPACITY : LINK_BLOCKED_OPACITY,
+      opacity: linkOpacity,
     })
   );
   linkLine.computeLineDistances();

@@ -19,7 +19,7 @@ export function GlobeLegend({ earthElevationDisplay, isCompact }: GlobeLegendPro
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-[var(--lm-color-earth)] inline-block"></span>
-          <span>Earth [DTE] ({earthElevationDisplay})</span>
+          <span>Earth [Geometric Sightline] ({earthElevationDisplay})</span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-0.5 border-b border-dashed border-[var(--lm-color-selected-site)] inline-block"></span>
@@ -28,8 +28,8 @@ export function GlobeLegend({ earthElevationDisplay, isCompact }: GlobeLegendPro
       </div>
 
       <div className="hidden lg:flex items-center gap-2 bg-[var(--lm-color-surface)]/85 backdrop-blur-xs px-2.5 py-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] text-[10px] font-mono text-[var(--lm-color-text-muted)]">
-        <span className="text-amber-400 font-semibold">Scale Note:</span>
-        <span>Visual bodies enlarged for visibility • Ray directions from site (not to physical distance scale)</span>
+        <span className="text-amber-400 font-semibold">Scale & Model Note:</span>
+        <span>Bodies enlarged for visibility • Ray directions from site (not to physical distance scale) • Earth disc is illustrative</span>
       </div>
 
       <div className="hidden sm:block bg-[var(--lm-color-surface)]/85 backdrop-blur-xs px-2.5 py-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] text-[10px] font-mono text-[var(--lm-color-text-muted)]">

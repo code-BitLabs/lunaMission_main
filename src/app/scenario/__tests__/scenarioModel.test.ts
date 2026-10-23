@@ -17,11 +17,14 @@ test('Scenario model: a changed epoch changes the derived geometry', () => {
   const before = deriveScenarioModel(SITE, DEFAULT_EPOCH_MS, 'terrain-aware');
   const after = deriveScenarioModel(SITE, DEFAULT_EPOCH_MS + 6 * MS_PER_HOUR, 'terrain-aware');
   assert.notDeepEqual(after.conditions, before.conditions);
-  if (after.conditions.sunElevationDeg.kind === 'available' &&
-      before.conditions.sunElevationDeg.kind === 'available') {
-    assert.notEqual(after.conditions.sunElevationDeg.value, before.conditions.sunElevationDeg.value);
+  if (
+    after.conditions.sunAzimuthDeg.kind === 'available' &&
+    before.conditions.sunAzimuthDeg.kind === 'available'
+  ) {
+    // At 89.9°S (less than 3km from pole), the Sun circles the horizon so azimuth advances continuously
+    assert.notEqual(after.conditions.sunAzimuthDeg.value, before.conditions.sunAzimuthDeg.value);
   } else {
-    assert.fail('characterization baseline expects available sun elevation at the sampled epochs');
+    assert.fail('characterization baseline expects available sun azimuth at the sampled epochs');
   }
 });
 
