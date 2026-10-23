@@ -48,13 +48,21 @@ export function PassportSiteHeader() {
     <div className="flex flex-col gap-2 pb-3.5 border-b border-[var(--lm-color-border-subtle)]">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-[11px] font-mono text-[var(--lm-color-selected-site)] font-semibold bg-[var(--lm-color-surface-strong)] px-1.5 py-0.5 rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-selected-site)]/30">
               {site.code}
             </span>
             <span className="text-xs text-[var(--lm-color-text-muted)] font-mono">
               {site.priority}
             </span>
+            {site.catalogVersion && (
+              <span
+                className="text-[10px] text-zinc-400 font-mono bg-zinc-800/60 px-1.5 py-0.5 rounded border border-zinc-700/50"
+                title={site.missionContextNote || 'Catalog provenance: NASA polar study series'}
+              >
+                {site.catalogVersion}
+              </span>
+            )}
           </div>
           <h2 className="text-base sm:text-lg font-bold text-[var(--lm-color-text-primary)] tracking-tight">
             {site.name}
@@ -84,6 +92,16 @@ export function PassportSiteHeader() {
       <p className="text-xs text-[var(--lm-color-text-secondary)] leading-relaxed">
         {site.description}
       </p>
+
+      {/* Lineage & Provenance Note */}
+      {site.missionContextNote && (
+        <div className="text-[11px] text-[var(--lm-color-text-muted)] bg-[var(--lm-color-surface-raised)]/60 px-2 py-1 rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-border-subtle)] flex items-start gap-1.5">
+          <span className="text-[var(--lm-color-selected-site)] font-semibold text-[10px] uppercase tracking-wider shrink-0 mt-0.5">
+            Lineage:
+          </span>
+          <span className="leading-tight">{site.missionContextNote}</span>
+        </div>
+      )}
 
       {/* Coordinates and Reference Metadata Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 font-mono-num text-xs bg-[var(--lm-color-surface-raised)] p-2.5 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)]">

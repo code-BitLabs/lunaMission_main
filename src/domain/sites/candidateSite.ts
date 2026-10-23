@@ -4,6 +4,8 @@ import { LunarCoordinates } from '@/domain/sites/coordinates';
 
 export type CandidateSitePriority = 'Artemis III Candidate' | 'VIPER Target Region' | 'Permanent Shadow Boundary' | 'Benchmark Calibration Site';
 
+export type CandidateEntityType = 'candidate-point' | 'region-centroid' | 'custom-point';
+
 export interface CandidateSite {
   id: string;
   code: string;              // e.g. 'SITE-001'
@@ -17,4 +19,11 @@ export interface CandidateSite {
   maxTerrainObstructionDeg: number;
   coverageStatus: 'High (LOLA DEM 128ppd)' | 'Moderate (LOLA 60ppd)' | 'Benchmark Validated';
   isDemoFixture?: boolean;
+  // Provenance & Catalog Versioning
+  sourceCatalog?: string;
+  catalogVersion?: string;
+  entityType?: CandidateEntityType;
+  officialRegionReference?: string;
+  missionContextNote?: string;
 }
+
