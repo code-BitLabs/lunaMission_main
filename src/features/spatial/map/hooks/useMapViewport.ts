@@ -14,6 +14,7 @@ import {
 import type { MapZoomPreset } from '@/features/spatial/map/components/MapToolbar';
 import {
   REGIONAL_ZOOM,
+  clampPan,
   coordinateFromPointer,
   dragOrigin,
   draggedPan,
@@ -92,8 +93,11 @@ export function useMapViewport(sitePos: ProjectedPoint) {
     (event: ReactMouseEvent) => {
       if (isDragging) {
         setActivePreset('custom');
-        const panNext = draggedPan(dragStartRef.current, event.clientX, event.clientY);
-        setViewport((current) => ({ ...current, pan: panNext }));
+        setViewport((current) => {
+          const rawPan = draggedPan(dragStartRef.current, event.clientX, event.clientY);
+          const boundedPan = clampPan(rawPan, current.zoom, MAP_CENTER);
+          return { ...current, pan: boundedPan };
+        });
       }
       setCursorCoord(coordinateFromEvent(event));
     },

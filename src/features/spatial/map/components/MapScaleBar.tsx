@@ -13,6 +13,7 @@ export interface MapScaleBarProps {
 /**
  * Dynamic Projection-Derived Scale Bar & Coordinate Readout.
  * Automatically recalibrates distance and pixel bar width as the map is zoomed.
+ * Displays explicit scientific datum and coordinate convention.
  */
 export function MapScaleBar({
   zoom,
@@ -43,6 +44,10 @@ export function MapScaleBar({
         <span className="flex items-center gap-1 text-[var(--lm-color-selected-site)]">
           <span className="w-2 h-2 rounded-full bg-[var(--lm-color-selected-site)] ring-1 ring-white" />
           <span>Selected</span>
+        </span>
+        <span className="flex items-center gap-1 text-[#818cf8]">
+          <span className="w-2 h-2 rounded-full border border-[#a78bfa] bg-[#818cf8]" />
+          <span>Compared</span>
         </span>
         <span className="flex items-center gap-1 text-[#38bdf8]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8]" />

@@ -1,12 +1,14 @@
 /**
  * Pure viewport maths for the 2D polar map: pointer-to-selenographic inversion,
- * zoom clamping and the fixed camera presets. Kept out of the component so the
- * interaction model is testable without a DOM.
+ * bounded pan/zoom clamping, aspect-ratio compensation, and camera presets.
+ * Kept out of the component so the interaction model is testable without a DOM.
  */
 
 import type { ProjectedPoint, SelenographicCoordinate } from '@/domain/coordinates/projection';
-import { unprojectCoordinates } from '@/domain/coordinates/projection';
-import type { MapZoomPreset } from '@/features/spatial/map/components/MapToolbar';
+import { projectLatLon, unprojectCoordinates } from '@/domain/coordinates/projection';
+import { CANDIDATE_SITES } from '@/domain/sites/catalog';
+
+export type MapZoomPreset = 'regional' | 'candidates' | 'site' | 'fit-all';
 
 export const ZOOM_MIN = 0.8;
 export const ZOOM_MAX = 4.5;
@@ -16,7 +18,7 @@ export const ZOOM_STEP = 0.35;
 export const WHEEL_ZOOM_IN_FACTOR = 1.14;
 export const WHEEL_ZOOM_OUT_FACTOR = 0.88;
 
-/** Regional view is the unmapped 1:1 frame; the other two are explicit cameras. */
+/** Regional view is the unmapped 1:1 frame; candidates and site are explicit cameras. */
 export const REGIONAL_ZOOM = 1.0;
 export const CANDIDATES_ZOOM = 1.85;
 export const SITE_ZOOM = 2.8;
@@ -44,6 +46,54 @@ export interface MapViewport {
   pan: { x: number; y: number };
 }
 
+/**
+ * Bounded pan clamping: prevents dragging the polar disc completely off screen.
+ * Allowable pan distance scales with zoom level.
+ */
+export function clampPan(pan: { x: number; y: number }, zoom: number, center: number): { x: number; y: number } {
+  // At zoom 1.0, maximum allowable pan offset is ~160px.
+  // At higher zoom, viewport can pan further into terrain detail.
+  const maxPan = Math.max(160, center * zoom * 0.75);
+  return {
+    x: Math.max(-maxPan, Math.min(maxPan, pan.x)),
+    y: Math.max(-maxPan, Math.min(maxPan, pan.y)),
+  };
+}
+
+/**
+ * Computes the optimal viewport to fit all candidate sites with comfortable margin.
+ */
+export function computeFitAllViewport(center: number): MapViewport {
+  const points = CANDIDATE_SITES.map((site) =>
+    projectLatLon(site.coordinates.latitudeDeg, site.coordinates.longitudeDeg)
+  );
+
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  const clusterCenterX = (minX + maxX) / 2;
+  const clusterCenterY = (minY + maxY) / 2;
+
+  const spanX = maxX - minX;
+  const spanY = maxY - minY;
+
+  // Fit into 440px target area out of 600px canvas (leaving generous margin for labels)
+  const fitZoom = Math.min(440 / Math.max(spanX, 100), 440 / Math.max(spanY, 100), 1.6);
+  const zoom = clampZoom(Number(fitZoom.toFixed(2)));
+
+  const panX = (center - clusterCenterX) * zoom;
+  const panY = (center - clusterCenterY) * zoom;
+
+  return {
+    zoom,
+    pan: clampPan({ x: panX, y: panY }, zoom, center),
+  };
+}
+
 /** Camera for a named preset, centred on `sitePos` for the site-level view. */
 export function presetViewport(preset: MapZoomPreset, sitePos: ProjectedPoint, center: number): MapViewport {
   switch (preset) {
@@ -52,8 +102,14 @@ export function presetViewport(preset: MapZoomPreset, sitePos: ProjectedPoint, c
     case 'site':
       return {
         zoom: SITE_ZOOM,
-        pan: { x: (center - sitePos.x) * SITE_ZOOM, y: (center - sitePos.y) * SITE_ZOOM },
+        pan: clampPan(
+          { x: (center - sitePos.x) * SITE_ZOOM, y: (center - sitePos.y) * SITE_ZOOM },
+          SITE_ZOOM,
+          center,
+        ),
       };
+    case 'fit-all':
+      return computeFitAllViewport(center);
     case 'regional':
       return { zoom: REGIONAL_ZOOM, pan: { x: 0, y: 0 } };
   }
@@ -74,6 +130,7 @@ export interface PointerMapping {
 /**
  * Inverts the CSS-painted rect and the zoom/pan transform back into
  * untransformed svg space, then into selenographic coordinates.
+ * Compensates for preserveAspectRatio="xMidYMid meet" letterboxing on non-square viewports.
  */
 export function coordinateFromPointer({
   clientX,
@@ -83,8 +140,37 @@ export function coordinateFromPointer({
   center,
   viewport,
 }: PointerMapping): SelenographicCoordinate | null {
-  const svgX = ((clientX - rect.left) * svgSize) / rect.width;
-  const svgY = ((clientY - rect.top) * svgSize) / rect.height;
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  // Compensate for preserveAspectRatio="xMidYMid meet"
+  const containerAspect = rect.width / rect.height;
+  let renderedLeft = rect.left;
+  let renderedTop = rect.top;
+  let renderedWidth = rect.width;
+  let renderedHeight = rect.height;
+
+  if (containerAspect > 1) {
+    // Widescreen container: horizontally letterboxed (black bars left and right)
+    renderedWidth = rect.height;
+    renderedLeft = rect.left + (rect.width - renderedWidth) / 2;
+  } else if (containerAspect < 1) {
+    // Tall container: vertically letterboxed (black bars top and bottom)
+    renderedHeight = rect.width;
+    renderedTop = rect.top + (rect.height - renderedHeight) / 2;
+  }
+
+  // Pointer outside the rendered SVG viewBox
+  if (
+    clientX < renderedLeft ||
+    clientX > renderedLeft + renderedWidth ||
+    clientY < renderedTop ||
+    clientY > renderedTop + renderedHeight
+  ) {
+    return null;
+  }
+
+  const svgX = ((clientX - renderedLeft) * svgSize) / renderedWidth;
+  const svgY = ((clientY - renderedTop) * svgSize) / renderedHeight;
   const untransformedX = (svgX - center - viewport.pan.x) / viewport.zoom + center;
   const untransformedY = (svgY - center - viewport.pan.y) / viewport.zoom + center;
   return unprojectCoordinates(untransformedX, untransformedY);

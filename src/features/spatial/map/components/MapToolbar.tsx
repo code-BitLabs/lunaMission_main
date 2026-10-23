@@ -1,8 +1,8 @@
 import React from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Crosshair, Layers, Compass, Eye } from 'lucide-react';
-import { CandidateSite } from '@/domain/sites/candidateSite';
+import { ZoomIn, ZoomOut, RotateCcw, Crosshair, Scan } from 'lucide-react';
+import type { MapZoomPreset } from '@/features/spatial/map/model/mapViewportMath';
 
-export type MapZoomPreset = 'regional' | 'candidates' | 'site';
+export type { MapZoomPreset };
 
 export interface MapToolbarProps {
   zoom: number;
@@ -24,7 +24,7 @@ export interface MapToolbarProps {
 
 /**
  * Clean scientific toolbar for the 2D Polar Stereographic Map.
- * Provides zoom presets (Regional, Candidates Cluster, Site Focus) and layer toggles.
+ * Provides zoom presets (Regional, Candidates Cluster, Site Focus, Fit All) and layer toggles.
  */
 export function MapToolbar({
   zoom,
@@ -55,6 +55,9 @@ export function MapToolbar({
             </span>
             <span className="text-[10px] font-mono text-[var(--lm-color-text-muted)] border-l border-[var(--lm-color-border)] pl-2">
               83°S – 90°S
+            </span>
+            <span className="text-[9.5px] font-mono text-slate-400 border-l border-[var(--lm-color-border)] pl-2 hidden xl:inline">
+              IAU/LOLA 128ppd
             </span>
           </div>
 
@@ -95,6 +98,18 @@ export function MapToolbar({
               }`}
             >
               Site Focus
+            </button>
+            <button
+              type="button"
+              onClick={() => onApplyPreset('fit-all')}
+              title="Fit All: Bounded framing of all 8 candidate sites"
+              className={`px-2 py-0.5 text-[11px] rounded-[var(--lm-radius-xs)] font-medium transition-colors ${
+                activePreset === 'fit-all'
+                  ? 'bg-[var(--lm-color-surface-strong)] text-[var(--lm-color-selected-site)] border border-[var(--lm-color-selected-site)]/60 font-semibold'
+                  : 'text-[var(--lm-color-text-muted)] hover:text-white'
+              }`}
+            >
+              Fit All
             </button>
           </div>
 
@@ -152,7 +167,7 @@ export function MapToolbar({
         </div>
       )}
 
-      {/* Floating Zoom & Pan Control Palette on bottom-right */}
+      {/* Floating Zoom & Camera Control Palette on bottom-right */}
       <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 flex flex-col gap-1 pointer-events-auto bg-[var(--lm-color-surface)]/95 backdrop-blur-md p-1.5 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] shadow-md">
         <button
           type="button"
@@ -174,18 +189,35 @@ export function MapToolbar({
         </button>
         <button
           type="button"
+          onClick={() => onApplyPreset('fit-all')}
+          title="Fit All Candidates"
+          aria-label="Fit all candidates"
+          className={`p-1.5 rounded-[var(--lm-radius-xs)] transition-colors ${
+            activePreset === 'fit-all'
+              ? 'text-[var(--lm-color-selected-site)] bg-[var(--lm-color-surface-raised)]'
+              : 'text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)]'
+          }`}
+        >
+          <Scan className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
           onClick={() => onApplyPreset('site')}
           title="Focus on Selected Site"
           aria-label="Focus on selected site"
-          className="p-1.5 rounded-[var(--lm-radius-xs)] text-[var(--lm-color-selected-site)] hover:bg-[var(--lm-color-surface-raised)] transition-colors"
+          className={`p-1.5 rounded-[var(--lm-radius-xs)] transition-colors ${
+            activePreset === 'site'
+              ? 'text-[var(--lm-color-selected-site)] bg-[var(--lm-color-surface-raised)]'
+              : 'text-[var(--lm-color-selected-site)] hover:bg-[var(--lm-color-surface-raised)]'
+          }`}
         >
           <Crosshair className="w-4 h-4" />
         </button>
         <button
           type="button"
           onClick={onReset}
-          title="Reset Map Orientation and Zoom"
-          aria-label="Reset map"
+          title="Reset View (Regional 1.0x)"
+          aria-label="Reset view"
           className="p-1.5 rounded-[var(--lm-radius-xs)] text-[var(--lm-color-text-secondary)] hover:text-white hover:bg-[var(--lm-color-surface-raised)] transition-colors"
         >
           <RotateCcw className="w-4 h-4" />

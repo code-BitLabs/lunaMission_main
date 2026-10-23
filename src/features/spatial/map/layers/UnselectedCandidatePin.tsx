@@ -1,44 +1,72 @@
+import React from 'react';
 import { CandidateSite } from '@/domain/sites/candidateSite';
 import { ProjectedPoint } from '@/domain/coordinates/projection';
 import {
+  CandidateLabelMode,
   PIN_COLORS,
   TAG_OFFSET_HOVERED_PX,
   TAG_OFFSET_PX,
+  badgeWidthFor,
   offsetAlongAngle,
   radialAngleFromPole,
   shouldShowCodePill,
   unselectedPinAriaLabel,
 } from '@/features/spatial/map/model/candidatePinGeometry';
 
-interface UnselectedCandidatePinProps {
+export interface UnselectedCandidatePinProps {
   site: CandidateSite;
   pos: ProjectedPoint;
   isHovered: boolean;
+  isCompared?: boolean;
+  labelMode?: CandidateLabelMode;
+  tagPos?: ProjectedPoint;
+  labelText?: string;
   zoom: number;
   onSelect: (site: CandidateSite) => void;
   onHover: (site: CandidateSite | null) => void;
 }
 
 /**
- * Compact pin for a candidate that is not selected: dot plus, when there is room
- * for it, a code pill pushed radially away from the pole.
+ * Compact pin for a candidate that is not selected.
+ * Distinguishes hovered, compared, and ordinary candidates.
+ * Respects collision-aware label placement with progressive level-of-detail.
  */
 export function UnselectedCandidatePin({
   site,
   pos,
   isHovered,
+  isCompared = false,
+  labelMode,
+  tagPos,
+  labelText,
   zoom,
   onSelect,
   onHover,
 }: UnselectedCandidatePinProps) {
   const angleRad = radialAngleFromPole(pos);
-  const tag = offsetAlongAngle(pos, angleRad, isHovered ? TAG_OFFSET_HOVERED_PX : TAG_OFFSET_PX);
+  const fallbackTag = offsetAlongAngle(pos, angleRad, isHovered ? TAG_OFFSET_HOVERED_PX : TAG_OFFSET_PX);
+  const resolvedTagPos = tagPos ?? fallbackTag;
+  const resolvedLabelMode = labelMode ?? (shouldShowCodePill(zoom, isHovered) ? 'code' : 'none');
+  const displayLabel = labelText ?? site.code;
+
+  const showLabel = resolvedLabelMode !== 'none';
+  const isFullLabel = resolvedLabelMode === 'full';
+  const tagWidth = isFullLabel ? badgeWidthFor(displayLabel) : 34;
+
+  // Pin styling based on candidate state
+  const markerFill = isHovered
+    ? PIN_COLORS.unselectedHovered
+    : isCompared
+    ? PIN_COLORS.compared
+    : PIN_COLORS.unselected;
+
+  const markerRadius = isHovered ? 4.8 : isCompared ? 4.0 : 3.6;
 
   return (
     <g
       tabIndex={0}
       role="button"
-      aria-label={unselectedPinAriaLabel(site)}
+      aria-label={unselectedPinAriaLabel(site, isCompared)}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(site);
@@ -58,41 +86,81 @@ export function UnselectedCandidatePin({
       {/* Generous Invisible Click Target to guarantee zero missed clicks */}
       <circle cx={pos.x} cy={pos.y} r="18" fill="transparent" />
 
-      {/* Unselected Site Marker Dot */}
+      {/* Compared Site Indicator Ring (Distinct dashed outer orbit) */}
+      {isCompared && !isHovered && (
+        <circle
+          cx={pos.x}
+          cy={pos.y}
+          r="7.5"
+          fill="none"
+          stroke={PIN_COLORS.comparedRing}
+          strokeWidth="1.2"
+          strokeDasharray="2.5 1.5"
+          opacity="0.85"
+        />
+      )}
+
+      {/* Hover Preview Outer Halo */}
+      {isHovered && (
+        <circle
+          cx={pos.x}
+          cy={pos.y}
+          r="9.5"
+          fill="none"
+          stroke={PIN_COLORS.unselectedHovered}
+          strokeWidth="1.2"
+          strokeDasharray="3 2"
+          opacity="0.9"
+        />
+      )}
+
+      {/* Candidate Marker Dot */}
       <circle
         cx={pos.x}
         cy={pos.y}
-        r={isHovered ? '4.8' : '3.6'}
-        fill={isHovered ? PIN_COLORS.unselectedHovered : PIN_COLORS.unselected}
+        r={markerRadius}
+        fill={markerFill}
         stroke={PIN_COLORS.markerStroke}
         strokeWidth="1.2"
         className="transition-all duration-150"
       />
 
-      {/* Radial Code Tag */}
-      {shouldShowCodePill(zoom, isHovered) && (
-        <g transform={`translate(${tag.x}, ${tag.y})`} className="pointer-events-none">
+      {/* Collision-Aware Progressive Tag */}
+      {showLabel && (
+        <g transform={`translate(${resolvedTagPos.x}, ${resolvedTagPos.y})`} className="pointer-events-none">
           <rect
-            x="-16"
+            x={-tagWidth / 2}
             y="-6.5"
-            width="32"
+            width={tagWidth}
             height="13"
             rx="2"
             fill={PIN_COLORS.tagBackdrop}
-            fillOpacity={isHovered ? 0.95 : 0.8}
-            stroke={isHovered ? PIN_COLORS.accent : PIN_COLORS.tagStroke}
-            strokeWidth={isHovered ? 1.0 : 0.7}
+            fillOpacity={isHovered ? 0.95 : 0.85}
+            stroke={
+              isHovered
+                ? PIN_COLORS.accent
+                : isCompared
+                ? PIN_COLORS.comparedTagStroke
+                : PIN_COLORS.tagStroke
+            }
+            strokeWidth={isHovered ? 1.0 : isCompared ? 0.9 : 0.7}
           />
           <text
             x="0"
             y="2.5"
             textAnchor="middle"
-            fill={isHovered ? PIN_COLORS.tagTextHovered : PIN_COLORS.tagText}
+            fill={
+              isHovered
+                ? PIN_COLORS.tagTextHovered
+                : isCompared
+                ? '#c7d2fe'
+                : PIN_COLORS.tagText
+            }
             fontSize="7"
-            fontWeight={isHovered ? 'bold' : '500'}
+            fontWeight={isHovered || isCompared ? 'bold' : '500'}
             fontFamily="monospace"
           >
-            {site.code}
+            {displayLabel}
           </text>
         </g>
       )}

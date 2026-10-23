@@ -146,6 +146,13 @@ export const CANDIDATE_SITES: CandidateSite[] = [
 
 export const DEFAULT_SITE_ID = 'shackleton-rim';
 
+/** Opening comparison: the three south-pole rim/ridge sites. */
+export const DEFAULT_COMPARISON_SITE_IDS: readonly string[] = [
+  'shackleton-rim',
+  'connecting-ridge',
+  'malapert-massif',
+];
+
 export function getSiteById(id: string): CandidateSite | undefined {
   return CANDIDATE_SITES.find((s) => s.id === id);
 }

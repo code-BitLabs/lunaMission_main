@@ -16,6 +16,8 @@ import {
   presetViewport,
   steppedZoom,
   wheelZoom,
+  clampPan,
+  computeFitAllViewport,
 } from '@/features/spatial/map/model/mapViewportMath';
 import { DEFAULT_PROJECTION_CONFIG } from '@/domain/coordinates/projection';
 
@@ -128,4 +130,54 @@ test('a drag keeps the map under the cursor from mousedown to mousemove', () => 
   assert.deepEqual(origin, { x: 300 - viewport.pan.x, y: 210 - viewport.pan.y });
   assert.deepEqual(draggedPan(origin, 300, 210), viewport.pan, 'no jump when the drag starts');
   assert.deepEqual(draggedPan(origin, 315, 200), { x: 27, y: -17 });
+});
+
+test('clampPan restricts pan within reasonable bounds based on zoom', () => {
+  const bounded1 = clampPan({ x: 9999, y: -9999 }, 1.0, CENTER);
+  assert.ok(Math.abs(bounded1.x) <= CENTER * 1.0 * 0.85);
+  assert.ok(Math.abs(bounded1.y) <= CENTER * 1.0 * 0.85);
+
+  const bounded2 = clampPan({ x: 50, y: -40 }, 1.0, CENTER);
+  assert.deepEqual(bounded2, { x: 50, y: -40 });
+});
+
+test('fit-all preset computes a camera that frames all candidate sites', () => {
+  const sitePos = { x: CENTER, y: CENTER };
+  const fitAll = presetViewport('fit-all', sitePos, CENTER);
+
+  assert.ok(fitAll.zoom >= 1.0 && fitAll.zoom <= 2.5);
+  assert.ok(Number.isFinite(fitAll.pan.x));
+  assert.ok(Number.isFinite(fitAll.pan.y));
+});
+
+test('coordinateFromPointer handles widescreen aspect ratio letterboxing accurately', () => {
+  const svgSize = DEFAULT_PROJECTION_CONFIG.svgSize; // 600
+  // Container is 1000px wide and 500px tall. With preserveAspectRatio meet:
+  // Rendered square is 500x500px, centered with 250px left margin.
+  const rect = { left: 0, top: 0, width: 1000, height: 500 };
+  const viewport = { zoom: 1, pan: { x: 0, y: 0 } };
+
+  // Center of rendered square: clientX = 250 + 250 = 500, clientY = 250.
+  const pole = coordinateFromPointer({
+    clientX: 500,
+    clientY: 250,
+    rect,
+    svgSize,
+    center: CENTER,
+    viewport,
+  });
+
+  assert.ok(pole);
+  assert.equal(Math.round(pole!.latitudeDeg), -90);
+
+  // Click in black bar area (clientX = 50, which is < 250): should return null
+  const outsideBar = coordinateFromPointer({
+    clientX: 50,
+    clientY: 250,
+    rect,
+    svgSize,
+    center: CENTER,
+    viewport,
+  });
+  assert.equal(outsideBar, null);
 });

@@ -7,17 +7,13 @@
  */
 
 import { CandidateSite } from '@/domain/sites/candidateSite';
-import { CANDIDATE_SITES } from '@/domain/sites/catalog';
+import { CANDIDATE_SITES, DEFAULT_COMPARISON_SITE_IDS as CATALOG_DEFAULT_COMPARISON_SITE_IDS } from '@/domain/sites/catalog';
 import { CalculationMode } from '@/domain/celestial/calculationMode';
 import { CelestialGeometryResult } from '@/domain/celestial/geometryResult';
 import { calculateSiteConditions } from '@/domain/celestial/siteConditions';
 
 /** Opening comparison: the three south-pole rim/ridge sites. */
-export const DEFAULT_COMPARISON_SITE_IDS: string[] = [
-  'shackleton-rim',
-  'connecting-ridge',
-  'malapert-massif',
-];
+export const DEFAULT_COMPARISON_SITE_IDS: string[] = [...CATALOG_DEFAULT_COMPARISON_SITE_IDS];
 
 /** One column still yields a readable record; four is the widest legible side-by-side. */
 export const MIN_COMPARISON_SITES = 1;

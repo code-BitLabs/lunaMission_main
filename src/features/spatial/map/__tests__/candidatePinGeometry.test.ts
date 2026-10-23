@@ -17,6 +17,7 @@ import {
   selectedPinAriaLabel,
   shouldShowCodePill,
   unselectedPinAriaLabel,
+  resolveCandidateLabelPlacements,
 } from '@/features/spatial/map/model/candidatePinGeometry';
 import { CANDIDATE_SITES } from '@/domain/sites/catalog';
 import { DEFAULT_PROJECTION_CONFIG, projectLatLon } from '@/domain/coordinates/projection';
@@ -102,4 +103,57 @@ test('every catalog site projects inside the map disc', () => {
     const pos = projectLatLon(site.coordinates.latitudeDeg, site.coordinates.longitudeDeg);
     assert.ok(Math.hypot(pos.x - CENTER, pos.y - CENTER) <= DEFAULT_PROJECTION_CONFIG.maxRadius);
   }
+});
+
+test('unselectedPinAriaLabel distinguishes compared candidate sites', () => {
+  const site = CANDIDATE_SITES[0];
+  const standardAria = unselectedPinAriaLabel(site, false);
+  const comparedAria = unselectedPinAriaLabel(site, true);
+
+  assert.ok(standardAria.startsWith('Select candidate'));
+  assert.ok(comparedAria.startsWith('Compared candidate'));
+});
+
+test('collision avoidance: selected site badge is never occluded and gets top priority', () => {
+  const selectedSite = CANDIDATE_SITES[0];
+  const placements = resolveCandidateLabelPlacements({
+    sites: CANDIDATE_SITES,
+    selectedSite,
+    hoveredSite: null,
+    comparedSiteIds: ['shackleton-rim', 'connecting-ridge'],
+    zoom: 1.5,
+  });
+
+  const selectedPlacement = placements.get(selectedSite.id);
+  assert.ok(selectedPlacement);
+  assert.equal(selectedPlacement.labelMode, 'full');
+});
+
+test('progressive disclosure: low regional zoom suppresses unselected labels to prevent clutter', () => {
+  const selectedSite = CANDIDATE_SITES[0];
+  const placements = resolveCandidateLabelPlacements({
+    sites: CANDIDATE_SITES,
+    selectedSite,
+    hoveredSite: null,
+    zoom: 1.0, // Regional zoom
+  });
+
+  for (const site of CANDIDATE_SITES) {
+    if (site.id !== selectedSite.id) {
+      assert.equal(placements.get(site.id)?.labelMode, 'none');
+    }
+  }
+});
+
+test('hover preview: hovered unselected candidate always receives a code tag regardless of zoom', () => {
+  const selectedSite = CANDIDATE_SITES[0];
+  const hoveredSite = CANDIDATE_SITES[1];
+  const placements = resolveCandidateLabelPlacements({
+    sites: CANDIDATE_SITES,
+    selectedSite,
+    hoveredSite,
+    zoom: 1.0, // Regional zoom where others are suppressed
+  });
+
+  assert.equal(placements.get(hoveredSite.id)?.labelMode, 'code');
 });
