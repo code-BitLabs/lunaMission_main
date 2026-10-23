@@ -27,8 +27,13 @@ export function GlobeLegend({ earthElevationDisplay, isCompact }: GlobeLegendPro
         </span>
       </div>
 
+      <div className="hidden lg:flex items-center gap-2 bg-[var(--lm-color-surface)]/85 backdrop-blur-xs px-2.5 py-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] text-[10px] font-mono text-[var(--lm-color-text-muted)]">
+        <span className="text-amber-400 font-semibold">Scale Note:</span>
+        <span>Visual bodies enlarged for visibility • Ray directions from site (not to physical distance scale)</span>
+      </div>
+
       <div className="hidden sm:block bg-[var(--lm-color-surface)]/85 backdrop-blur-xs px-2.5 py-1 rounded-[var(--lm-radius-sm)] border border-[var(--lm-color-border)] text-[10px] font-mono text-[var(--lm-color-text-muted)]">
-        Source: NASA GSFC CGI Moon Kit (LROC WAC / LOLA DEM 128ppd)
+        Source: NASA GSFC CGI Moon Kit (LROC WAC / LOLA DEM)
       </div>
     </div>
   );

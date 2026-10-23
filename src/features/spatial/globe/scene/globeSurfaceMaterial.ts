@@ -5,19 +5,21 @@ const LROC_COLOR_TEXTURE_URL = '/assets/lunar/lroc_color_2k.jpg';
 const LROC_POLAR_FALLBACK_TEXTURE_URL = '/assets/lunar/lroc_color_poles_1k.jpg';
 const LOLA_DEM_TEXTURE_URL = '/assets/lunar/ldem_topo.jpg';
 
-/** 160x160 sphere geometry gives enough vertices for mountain peaks and crater rims. */
-const MOON_SPHERE_SEGMENTS = 160;
-const REGOLITH_ROUGHNESS = 0.94;
-const REGOLITH_METALNESS = 0.01;
-const REGOLITH_TINT = 0xd2d2d2;
-const DEM_DISPLACEMENT_SCALE = 0.026;
-const DEM_DISPLACEMENT_BIAS = -0.013;
-const NORMAL_MAP_STRENGTH = 2.4;
-const NORMAL_SCALE = 1.8;
-/** Prime meridian sits at the centre of the equirectangular maps, which is +Z here. */
+/** Smooth 128x128 sphere geometry for high-performance, seamless lunar curvature. */
+const MOON_SPHERE_SEGMENTS = 128;
+const REGOLITH_ROUGHNESS = 0.92;
+const REGOLITH_METALNESS = 0.0;
+const REGOLITH_TINT = 0xd4d8df;
+
+/** Calibrated subtle relief settings to eliminate spiky polygon artifacts while preserving crater morphology. */
+const NORMAL_MAP_STRENGTH = 0.85;
+const NORMAL_SCALE = 0.35;
+const BUMP_SCALE = 0.012;
+
+/** Prime meridian sits at the centre of the equirectangular maps, which is +Z in this scene. */
 const TEXTURE_PRIME_MERIDIAN_ROTATION_Y = -Math.PI / 2;
 
-/** Normal map built in memory from a grayscale DEM through a Sobel gradient. */
+/** High-fidelity normal map built from the LOLA DEM through a Sobel gradient. */
 function generateNormalMapFromImage(image: HTMLImageElement, strength: number): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = image.width;
@@ -71,6 +73,7 @@ function generateNormalMapFromImage(image: HTMLImageElement, strength: number): 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
   return texture;
 }
 
@@ -86,7 +89,7 @@ export interface MoonSurface {
   dispose: () => void;
 }
 
-/** NASA LROC color mosaic plus LOLA DEM relief applied to the Moon sphere. */
+/** NASA LROC color mosaic plus calibrated LOLA DEM shading applied to the Moon sphere. */
 export function createMoonSurface({ onTextureSettled, onSurfaceUnavailable }: MoonSurfaceHandlers): MoonSurface {
   const textureLoader = new THREE.TextureLoader();
 
@@ -96,6 +99,9 @@ export function createMoonSurface({ onTextureSettled, onSurfaceUnavailable }: Mo
       onSurfaceUnavailable('Failed to load NASA LROC surface textures');
     });
   });
+  colorTexture.colorSpace = THREE.SRGBColorSpace;
+  colorTexture.wrapS = THREE.RepeatWrapping;
+  colorTexture.wrapT = THREE.ClampToEdgeWrapping;
 
   const material = new THREE.MeshStandardMaterial({
     map: colorTexture,
@@ -117,9 +123,9 @@ export function createMoonSurface({ onTextureSettled, onSurfaceUnavailable }: Mo
 
     normalTexture = generateNormalMapFromImage(topoImage, NORMAL_MAP_STRENGTH);
 
-    material.displacementMap = topoTexture;
-    material.displacementScale = DEM_DISPLACEMENT_SCALE;
-    material.displacementBias = DEM_DISPLACEMENT_BIAS;
+    // Apply smooth normal and bump shading without geometric vertex displacement spikes
+    material.bumpMap = topoTexture;
+    material.bumpScale = BUMP_SCALE;
 
     material.normalMap = normalTexture;
     material.normalScale = new THREE.Vector2(NORMAL_SCALE, NORMAL_SCALE);

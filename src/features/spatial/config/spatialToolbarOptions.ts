@@ -59,22 +59,29 @@ export interface CameraPresetOption {
 /** Camera presets only exist for the globe, so the group is hidden in 2D-only view. */
 export const CAMERA_PRESETS: CameraPresetOption[] = [
   {
+    preset: 'global',
+    label: 'Global',
+    title: 'Global Context: Complete Moon sphere overview',
+    Icon: GlobeIcon,
+    iconClassName: 'w-3 h-3',
+  },
+  {
     preset: 'nadir',
-    label: 'Nadir',
-    title: 'South Pole Nadir Camera (aligns with 2D map)',
+    label: 'South Pole',
+    title: 'South Pole Focus: Centered on candidate region (83°S–90°S)',
     Icon: Compass,
     iconClassName: 'w-3 h-3 text-[var(--lm-color-selected-site)]',
   },
   {
     preset: 'oblique',
     label: 'Oblique',
-    title: 'Perspective view across crater rims',
+    title: 'Oblique Terrain: Perspective view across crater rims and relief',
     Icon: Eye,
     iconClassName: 'w-3 h-3',
   },
   {
     preset: 'site',
-    label: 'Site',
+    label: 'Site Focus',
     title: 'Focus camera on selected candidate site',
     Icon: Crosshair,
     iconClassName: 'w-3 h-3',

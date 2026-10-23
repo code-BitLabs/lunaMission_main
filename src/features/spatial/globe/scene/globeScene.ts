@@ -12,24 +12,24 @@ const SCENE_BACKGROUND = 0x070b12;
 const CAMERA_FOV_DEG = 38;
 const CAMERA_NEAR = 0.05;
 const CAMERA_FAR = 100;
-/** Nadir opening pose: straight down on 90°S, +Z (prime meridian) held up. */
-const INITIAL_CAMERA_POSITION: readonly [number, number, number] = [0, -3.4, 0.0001];
+/** Nadir opening pose: straight down on 90°S, +Z (prime meridian) held up, Moon occupying ~76% of frame. */
+const INITIAL_CAMERA_POSITION: readonly [number, number, number] = [0, -4.8, 0.0001];
 const INITIAL_CAMERA_UP: readonly [number, number, number] = [0, 0, 1];
-const CONTROL_DAMPING_FACTOR = 0.06;
-const CONTROL_MIN_DISTANCE = 1.6;
-const CONTROL_MAX_DISTANCE = 8.5;
+const CONTROL_DAMPING_FACTOR = 0.05;
+const CONTROL_MIN_DISTANCE = 2.1;
+const CONTROL_MAX_DISTANCE = 9.5;
 
-const SUN_LIGHT_COLOR = 0xfff6e5;
-const SUN_LIGHT_INTENSITY = 2.7;
+const SUN_LIGHT_COLOR = 0xfff8e7;
+const SUN_LIGHT_INTENSITY = 2.5;
 const SUN_SHADOW_MAP_SIZE = 1024;
 const SUN_SHADOW_CAMERA_EXTENT = 2.5;
 const SUN_SHADOW_NEAR = 0.5;
 const SUN_SHADOW_FAR = 30;
 const SUN_SHADOW_BIAS = -0.0002;
 const EARTHSHINE_LIGHT_COLOR = 0x8ccbff;
-const EARTHSHINE_LIGHT_INTENSITY = 0.22;
-const AMBIENT_SPACE_LIGHT_COLOR = 0x0a1220;
-const AMBIENT_SPACE_LIGHT_INTENSITY = 0.14;
+const EARTHSHINE_LIGHT_INTENSITY = 0.20;
+const AMBIENT_SPACE_LIGHT_COLOR = 0x0c1424;
+const AMBIENT_SPACE_LIGHT_INTENSITY = 0.16;
 /** Directional lights sit far along their body-fixed direction so rays read as parallel. */
 const SUN_LIGHT_DISTANCE = 18.0;
 const EARTHSHINE_LIGHT_DISTANCE = 15.0;

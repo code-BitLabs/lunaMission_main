@@ -54,6 +54,7 @@ const BROWSER_GLOBAL =
  */
 const BROWSER_GLOBALS_ALLOWED = [
   'features/passport/hooks/useInspectorViewport.ts',
+  'features/spatial/globe/scene/globeCelestialVectors.ts',
   'features/spatial/globe/scene/globeScene.ts',
   'features/spatial/globe/scene/globeSceneBuilder.ts',
   'features/spatial/globe/scene/globeSiteMarkers.ts',

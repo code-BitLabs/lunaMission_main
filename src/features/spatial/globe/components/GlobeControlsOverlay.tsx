@@ -64,18 +64,27 @@ export function GlobeControlsOverlay({
         <div className="flex items-center gap-1 border-r border-[var(--lm-color-border)] pr-1.5">
           <button
             type="button"
+            onClick={() => onSelectPreset('global')}
+            title="Global Context: Complete Moon sphere overview"
+            className={presetButtonClass(GLOBAL_BUTTON_BASE, cameraPreset === 'global')}
+          >
+            Global
+          </button>
+
+          <button
+            type="button"
             onClick={() => onSelectPreset('nadir')}
-            title="South Pole Nadir"
+            title="South Pole Focus: Centered on Artemis candidate region"
             className={presetButtonClass(NADIR_BUTTON_BASE, cameraPreset === 'nadir')}
           >
             <Compass className="w-3.5 h-3.5 text-[var(--lm-color-selected-site)]" />
-            <span>Nadir</span>
+            <span>South Pole</span>
           </button>
 
           <button
             type="button"
             onClick={() => onSelectPreset('oblique')}
-            title="Perspective view across South Pole crater rims and relief"
+            title="Oblique Terrain: Perspective view across South Pole crater rims and relief"
             className={presetButtonClass(ICON_PRESET_BUTTON_BASE, cameraPreset === 'oblique')}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -85,20 +94,11 @@ export function GlobeControlsOverlay({
           <button
             type="button"
             onClick={() => onSelectPreset('site')}
-            title="Fly to and focus on selected candidate site"
+            title="Focus camera on selected candidate site"
             className={presetButtonClass(ICON_PRESET_BUTTON_BASE, cameraPreset === 'site')}
           >
             <Crosshair className="w-3.5 h-3.5" />
-            <span>Site</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSelectPreset('global')}
-            title="Global Lunar Sphere Overview"
-            className={presetButtonClass(GLOBAL_BUTTON_BASE, cameraPreset === 'global')}
-          >
-            Global
+            <span>Site Focus</span>
           </button>
         </div>
 

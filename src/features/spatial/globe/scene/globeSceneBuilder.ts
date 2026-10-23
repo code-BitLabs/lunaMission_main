@@ -91,6 +91,12 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
   const occlusionScratch = new THREE.Vector3();
   const transitioner = createCameraTransitioner();
 
+  // User manual drag/orbit immediately interrupts in-flight camera transitions
+  const handleControlsStart = () => {
+    transitioner.cancel();
+  };
+  globe.controls.addEventListener('start', handleControlsStart);
+
   let animationId = 0;
   const animate = () => {
     animationId = requestAnimationFrame(animate);
@@ -124,6 +130,7 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();
       picking.detach();
+      globe.controls.removeEventListener('start', handleControlsStart);
       if (container.contains(globe.renderer.domElement)) {
         container.removeChild(globe.renderer.domElement);
       }

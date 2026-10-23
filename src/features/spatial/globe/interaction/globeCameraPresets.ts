@@ -5,17 +5,25 @@ import { CameraPreset } from '@/features/spatial/model/spatialPreferences';
 import { MOON_SCENE_RADIUS, latLonToVector3 } from '@/features/spatial/globe/scene/globeScene';
 
 /** Per-frame easing of a preset change: progress closes the transition, lerp moves the view. */
-const TRANSITION_PROGRESS_STEP = 0.04;
-const TRANSITION_LERP_FACTOR = 0.08;
+const TRANSITION_PROGRESS_STEP = 0.035;
+const TRANSITION_LERP_FACTOR = 0.075;
 
-const NADIR_CAMERA_DISTANCE = 3.4;
-const OBQUITE_CAMERA_POSITION: readonly [number, number, number] = [0, -2.6, 2.2];
-const OBQUITE_LOOK_TARGET: readonly [number, number, number] = [0, -1.2, 0];
-const OBQUITE_UP_VECTOR: readonly [number, number, number] = [0, 0.6, 0.8];
-/** Height above the surface, and the poleward tilt, of the site-focused camera. */
-const SITE_CAMERA_ALTITUDE = 0.7;
-const SITE_CAMERA_TILT = 0.2;
-const GLOBAL_CAMERA_DISTANCE = 4.8;
+/**
+ * Calibrated camera distances for 38° FOV and Moon radius 1.45:
+ * - South Pole Focus (nadir): 4.8 units -> Moon occupies ~76% of canvas, no cropping.
+ * - Global Context: 5.8 units -> Full Moon with ~16% margin around all sides.
+ * - Oblique: perspective across crater rims at ~38° inclination.
+ * - Site Focus: 1.35 units above candidate normal.
+ */
+export const NADIR_CAMERA_DISTANCE = 4.8;
+export const GLOBAL_CAMERA_POSITION: readonly [number, number, number] = [0, -2.4, 5.2];
+export const GLOBAL_LOOK_TARGET: readonly [number, number, number] = [0, -0.4, 0];
+export const GLOBAL_UP_VECTOR: readonly [number, number, number] = [0, 0.8, 0.6];
+export const OBLIQUE_CAMERA_POSITION: readonly [number, number, number] = [0, -3.6, 2.4];
+export const OBLIQUE_LOOK_TARGET: readonly [number, number, number] = [0, -1.2, 0];
+export const OBLIQUE_UP_VECTOR: readonly [number, number, number] = [0, 0.6, 0.8];
+export const SITE_CAMERA_ALTITUDE = 1.35;
+export const SITE_CAMERA_TILT = 0.35;
 
 export interface CameraPose {
   camPos: THREE.Vector3;
@@ -34,11 +42,11 @@ export function cameraPoseForPreset(preset: CameraPreset, site: CandidateSite): 
     };
   }
   if (preset === 'oblique') {
-    // Low view across the pole's crater rims toward the terminator.
+    // Low perspective view across the south-polar crater rims toward the terminator.
     return {
-      camPos: new THREE.Vector3(...OBQUITE_CAMERA_POSITION),
-      lookTarget: new THREE.Vector3(...OBQUITE_LOOK_TARGET),
-      upVector: new THREE.Vector3(...OBQUITE_UP_VECTOR).normalize(),
+      camPos: new THREE.Vector3(...OBLIQUE_CAMERA_POSITION),
+      lookTarget: new THREE.Vector3(...OBLIQUE_LOOK_TARGET),
+      upVector: new THREE.Vector3(...OBLIQUE_UP_VECTOR).normalize(),
     };
   }
   if (preset === 'site') {
@@ -52,31 +60,36 @@ export function cameraPoseForPreset(preset: CameraPreset, site: CandidateSite): 
       camPos: sitePos
         .clone()
         .add(siteNormal.clone().multiplyScalar(SITE_CAMERA_ALTITUDE))
-        .add(new THREE.Vector3(0, SITE_CAMERA_TILT, SITE_CAMERA_TILT)),
+        .add(new THREE.Vector3(0, -SITE_CAMERA_TILT, SITE_CAMERA_TILT)),
       lookTarget: sitePos.clone(),
       upVector: new THREE.Vector3(0, 0, 1),
     };
   }
+  // Global context: complete Moon with safe margins and clear view of southern candidate region
   return {
-    camPos: new THREE.Vector3(0, 0, GLOBAL_CAMERA_DISTANCE),
-    lookTarget: new THREE.Vector3(0, 0, 0),
-    upVector: new THREE.Vector3(0, 1, 0),
+    camPos: new THREE.Vector3(...GLOBAL_CAMERA_POSITION),
+    lookTarget: new THREE.Vector3(...GLOBAL_LOOK_TARGET),
+    upVector: new THREE.Vector3(...GLOBAL_UP_VECTOR).normalize(),
   };
 }
 
 export interface CameraTransitioner {
   moveTo: (preset: CameraPreset, site: CandidateSite) => void;
+  cancel: () => void;
   /** Advances an in-flight transition; idles at zero cost between preset changes. */
   step: (camera: THREE.PerspectiveCamera, controls: OrbitControls) => void;
 }
 
-/** Eased camera moves between presets, owned by the globe's render loop. */
+/** Eased camera moves between presets, interruptible on user manipulation. */
 export function createCameraTransitioner(): CameraTransitioner {
   let target: (CameraPose & { progress: number }) | null = null;
 
   return {
     moveTo: (preset, site) => {
       target = { ...cameraPoseForPreset(preset, site), progress: 0 };
+    },
+    cancel: () => {
+      target = null;
     },
     step: (camera, controls) => {
       if (!target) return;
