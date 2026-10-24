@@ -28,6 +28,9 @@ export interface UseGlobeSceneInput {
   showGrid: boolean;
   showShadowRegions: boolean;
   showVectors: boolean;
+  showTerrain?: boolean;
+  showMarkers?: boolean;
+  showLabels?: boolean;
   cameraPreset: CameraPreset;
   onCameraPresetChange: (preset: CameraPreset) => void;
 }
@@ -60,6 +63,9 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
     showGrid,
     showShadowRegions,
     showVectors,
+    showTerrain,
+    showMarkers,
+    showLabels,
     cameraPreset,
     onCameraPresetChange,
   } = input;
@@ -148,6 +154,9 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
     showVectors,
     showGrid,
     showShadowRegions,
+    showTerrain,
+    showMarkers,
+    showLabels,
     cameraPreset,
     applyCameraPreset,
   });

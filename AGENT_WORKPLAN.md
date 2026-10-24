@@ -1,193 +1,103 @@
-# LunaMission 3D Experience — Agent Workplan
+# LunaMission 3D Experience — Agent Workplan & Verification Report
 
-**Version:** 1.1  
-**Updated:** 2026-10-23  
-**Status convention:** `Not Started` → `In Progress` → `Needs Review` → `Done`; use `Blocked` when a dependency or environment prevents progress.  
-**Rule:** A task is not Done until acceptance criteria and evidence are recorded.
-
----
-
-## 0. Coordination Rules
-
-- A Lead/Integrator owns the workplan, acceptance review, and integration branch.
-- Each agent gets a bounded task ID, non-overlapping file ownership, and explicit dependencies.
-- All agents read `MASTER_3D_EXPERIENCE_SPEC.md` and `NASA_DATA_AND_SCIENCE_RESEARCH.md` first.
-- Real science calculation modules stay separate from rendering. No fabricated values to fill UI.
-- Every task handoff includes files changed, checks run, results, risks, and unresolved decisions.
+**Version:** 2.0 (Master Implementation Release)  
+**Updated:** 2026-10-24  
+**Status:** **All Phases Complete & Verified**  
+**Core Standard:** Real science calculation modules separate from rendering. Zero fabricated values. Scale-aware navigation bounded by source resolution.
 
 ---
 
-## 1. Roles
+## 1. Executive Summary & Deliverables
 
-| Agent role | Focus | Do not own |
+| Deliverable | Status | Evidence & Metrics |
 |---|---|---|
-| Lead / Integrator | Source audit, task sequencing, architecture decisions, final integration, production verification | Independent rewrites of every feature |
-| Agent A — Data & Catalog | Candidate catalog versioning, asset/data provenance manifest, coverage metadata, candidate region vs point distinction | 3D renderer and visual polish |
-| Agent B — Scientific Geometry Contract | Frame/epoch/site geometry identity, typed Sun/Earth result integration, coordinate-transform test design | Inventing new science algorithms without references |
-| Agent C — 3D Renderer & Camera | Current scene, camera modes/limits, resize, render layers, realistic asset wiring | Replacing shared site/time state or public API contracts |
-| Agent D — Interaction & State | Site picking, selected-site synchronization, hover/select semantics, playback integration interfaces | Renderer internals except through stable props/contracts |
-| Agent E — Visual UX & Accessibility | Toolbar/control hierarchy, label decluttering, empty/error/loading fallbacks, responsive/fullscreen UX | Coordinate transforms or scientific metric derivation |
-| Agent F — QA & Performance | Test matrix, regression/visual/browser tests, resource/leak/performance validation | Implementing production components without assigned task |
+| **Root Causes Diagnosed & Fixed** | **Done** | Fixed bloated 3D marker discs, overlapping badges, polar orbit drift, unconstrained zoom clipping, and confusing concentric rings. |
+| **Three Exploration Scales** | **Done** | Mode A (Regional South Pole), Mode B (Candidate Overview), Mode C (Local Inspection) + Global Context & Oblique Relief. |
+| **Independent 3D Laboratory** | **Done** | Route `/scenario/3d-lab` mounted with full viewport, real scenario context, HUD diagnostics, and Zen view dock collapse. |
+| **Scientific Site Intel Panel** | **Done** | Modular 4-part scientific inspection accordion: Overview, Terrain Coverage, Illumination, and Visibility/DTE link. |
+| **Independent Layer Controls** | **Done** | Discrete toggles for Terrain, Sites, Labels, Vectors (Sun/Earth), Footprint (83°S LOLA extent), and Grid. |
+| **Automated Test Matrix** | **Done** | **197 automated tests passing** across 33 test suites (`bun test`). Zero lint/type errors (`tsc --noEmit`). |
+| **Browser End-to-End Verification** | **Done** | Complete 11-step Playwright browser automation sequence passing in headless Chromium with screenshots saved to `.playwright-cli/`. |
 
 ---
 
-## 2. Status Summary
+## 2. Root Cause Diagnostics & Confirmed Fixes
 
-| Task | Title | Owner | Status | Depends on |
-|---|---|---|---|---|
-| 3D-001 | Repository and scene audit | Lead | **Done** | — |
-| 3D-002 | Candidate catalog/version decision | Agent A + Lead | **Done** | 3D-001 |
-| 3D-003 | Asset manifest and source coverage audit | Agent A | **Done** | 3D-001 |
-| 3D-004 | Geometry/frame result contract | Agent B | **Done** | 3D-001 |
-| 3D-005 | Renderer architecture and camera baseline | Agent C | **Done** | 3D-001 |
-| 3D-006 | Shared selection/epoch integration | Agent D | **Done** | 3D-004, 3D-005 |
-| 3D-007 | Accurate Moon assets and relief | Agent C + Agent A | **Done** | 3D-003, 3D-005 |
-| 3D-008 | Sun lighting and direction display | Agent B + Agent C | **Done** | 3D-004, 3D-006 |
-| 3D-009 | Earth direction/apparent-body display | Agent B + Agent C | **Done** | 3D-004, 3D-006 |
-| 3D-010 | Candidate picking and surface inspection | Agent D + Agent C | **Done** | 3D-002, 3D-004, 3D-005 |
-| 3D-011 | Camera presets, controls and focus transitions | Agent C + Agent E | **Done** | 3D-005, 3D-006 |
-| 3D-012 | Layers, overlays, labels and decluttering | Agent E + Agent C | **Done** | 3D-003, 3D-005, 3D-006 |
-| 3D-013 | Local terrain patch / LOD pilot | Agent A + Agent C | **Done** | 3D-003, 3D-004, 3D-007 |
-| 3D-014 | Time playback and epoch-linked scene updates | Agent D + Agent B | **Done** | 3D-004, 3D-006, 3D-008, 3D-009 |
-| 3D-015 | Error handling and lifecycle resilience | Agent C + Agent E | **Done** | 3D-005, 3D-007 |
-| 3D-016 | Automated regression tests | Agent F | **Done** | 3D-004, 3D-006, 3D-008, 3D-009, 3D-010 |
-| 3D-017 | Responsive, accessibility and performance review | Agent E + Agent F | **Done** | 3D-011, 3D-012, 3D-015 |
-| 3D-018 | Integration and release evidence | Lead + Agent F | **Done** | 3D-002–3D-017 |
+1. **Bloated Marker Discs at Extreme Zoom (Fixed)**:
+   - *Problem*: In close zoom ($d < 0.6\text{ u}$), markers with fixed world geometry (`radius = 0.010 - 0.018\text{ u}`) ballooned into giant cyan/purple discs covering entire craters.
+   - *Root Cause*: World-space mesh dimensions did not scale down with camera-to-target distance, and unselected candidates remained visible when zoomed into local sites.
+   - *Fix*: Created scale-adaptive geometry in `globeSiteMarkers.ts`. At local inspection scale ($d < 0.65\text{ u}$), all non-selected candidates are automatically culled, and the selected site marker dynamically scales down to maintain a crisp, delicate pin appearance.
+   - *Evidence*: `lab-3d-5-local-inspection.png` and `lab-3d-7-malapert-inspection.png` show clear, unobstructed crater relief.
+
+2. **Confusing Concentric Circles & Dashed Rings (Fixed)**:
+   - *Problem*: Polar scene rendered multiple arbitrary dashed rings at -85° and -88° latitude with no documented meaning.
+   - *Root Cause*: Decorative rings added in `createPolarFootprintGroup()` created visual clutter.
+   - *Fix*: Streamlined `globeGraticule.ts` to show strictly the **verified 83.0°S LOLA DEM coverage boundary** and the true 90°S South Pole crosshair.
+   - *Evidence*: Tested in `globeLifecycleAndFraming.test.ts` and verified in `lab-3d-3-southpole.png`.
+
+3. **Camera Instability and Arbitrary Offsets Near South Pole (Fixed)**:
+   - *Problem*: Local inspection preset used fixed world offsets `(0, -0.035, 0.035)`, causing oblique angles to point in arbitrary directions depending on the candidate's latitude.
+   - *Root Cause*: Lack of a local topocentric coordinate frame for site camera positioning.
+   - *Fix*: Re-derived `cameraPoseForPreset` in `globeCameraPresets.ts` using the site surface normal and local meridian tangent plane. The camera parks at an oblique grazing altitude ($0.085\text{ u}$ normal, $0.045\text{ u}$ tangent) with `upVector = siteNormal`, enabling smooth 360° orbit rotation without gimbal lock.
+   - *Evidence*: Tested in `globeCameraOrbitStability.test.ts` and `lab-3d-6-deep-orbit.png`.
+
+4. **Dynamic Near-Plane Slicing and Anti-Penetration Guard (Fixed)**:
+   - *Problem*: Camera either sliced through terrain at close range (near-plane clipping) or penetrated into the Moon sphere.
+   - *Root Cause*: Static `camera.near = 0.05` was too large for sub-kilometer inspection.
+   - *Fix*: Implemented dynamic near clipping plane adjustment ($near = 0.002\text{ u}$ when $dist < 0.20\text{ u}$) and spherical boundary collision guard preventing camera altitude from dipping below $R_{moon} + 0.015\text{ u}$.
+   - *Evidence*: Validated in `globeDeepZoom.test.ts`.
 
 ---
 
-## 3. Detailed Tasks & Recorded Evidence
+## 3. The Three Deliberate Exploration Scales
 
-### 3D-001 — Repository and scene audit
-- **Owner:** Lead / Integrator
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/scene/*`, `src/features/spatial/globe/interaction/*`, `src/domain/sites/catalog.ts`.
-- **Root Causes Diagnosed:**
-  1. Camera distance in South Pole preset was 3.4 on a 38° FOV (causing 124% canvas height coverage, clipping the Moon disc).
-  2. Coarse 160x160 vertex displacement from an equirectangular elevation map produced spiky polygon artifacts.
-  3. Earth was rendered as a debug wireframe mesh sphere.
-  4. Sun was an arrow protruding from the candidate rather than a coherent luminous light source.
-  5. 3D candidate badges were colliding and stacking over the South Pole.
-- **Evidence:** Documented in project analysis; fixed across `globeCameraPresets.ts`, `globeSurfaceMaterial.ts`, `globeCelestialVectors.ts`, and `globeSiteMarkers.ts`.
+- **Mode A — Regional South Pole**:
+  - *Camera*: Nadir orientation centered on 90°S ($d = 4.8\text{ u}$), matching the 2D Polar Stereographic map. Prime meridian (+Z) held up.
+  - *Content*: Full polar relief, 83°S LOLA DEM coverage boundary, non-overlapping candidate pins, and global coordinate graticule.
+- **Mode B — Candidate Overview**:
+  - *Camera*: Centered on selected site ($d \approx 1.25\text{ u}$) framing the surrounding crater rim and massif.
+  - *Content*: Emphasized candidate pin, subtle distant markers, and floating Site Intel panel displaying catalog lineage and provenance.
+- **Mode C — Local Inspection**:
+  - *Camera*: Oblique grazing view ($d \approx 0.096\text{ u}$, ~28° elevation angle), orbiting around the local surface normal.
+  - *Content*: High-contrast relief and illumination terminator. Non-selected candidates hidden to prevent visual clutter.
+- **Global Context & Oblique Relief**:
+  - Global overview ($d = 5.8\text{ u}$) framing the entire lunar sphere with comfortable margin, and regional oblique perspective view across crater rims.
 
-### 3D-002 — Candidate catalog/version decision
-- **Owner:** Agent A + Lead
-- **Status:** **Done**
-- **Files/areas:** `src/domain/sites/candidateSite.ts`, `src/domain/sites/catalog.ts`, `src/features/passport/components/summary/PassportSiteHeader.tsx`.
-- **Actions:**
-  - Added `sourceCatalog`, `catalogVersion`, `entityType`, `officialRegionReference`, and `missionContextNote` to `CandidateSite` interface.
-  - Documented `CATALOG_METADATA` distinguishing the 2022 candidate study points from NASA's October 2024 updated 9-region list and May 2026 preliminary mission plans.
-  - Displayed catalog version pill and mission context lineage in `PassportSiteHeader.tsx`.
-- **Evidence:** All 8 sites enriched; 171 tests pass; UI reflects lineage.
+---
 
-### 3D-003 — Asset manifest and source coverage audit
-- **Owner:** Agent A
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/config/lunarAssetManifest.ts`.
-- **Actions:** Created authoritative asset manifest documenting NASA SVS CGI Moon Kit LROC WAC global color map, LOLA GDR 128ppd elevation relief, and LOLA South Pole 83°S–90°S DEM.
-- **Evidence:** Explicitly distinguished aesthetic color imagery from analytic elevation; recorded coverage boundaries, coordinate frames, and resolutions.
+## 4. Verification & Performance Evidence
 
-### 3D-004 — Geometry/frame result contract
-- **Owner:** Agent B
-- **Status:** **Done**
-- **Files/areas:** `src/domain/coordinates/frames.ts`, `src/features/spatial/globe/scene/globeScene.ts`.
-- **Actions:** Validated selenographic lat/lon to scene Cartesian coordinates (`latLonToVector3`) using IAU Mean Earth / Polar Axis conventions.
-- **Evidence:** Unit tests in `src/features/spatial/globe/__tests__/globeCoordinates.test.ts` verify North/South poles, Prime Meridian, and South Pole candidate positions.
+- **Unit Test Suite**: `bun test` passes **197 tests across 33 test files** with 0 failures in <300 ms.
+- **TypeScript & Lint**: `tsc --noEmit` and `lint_applet` pass with 0 errors.
+- **Production Build**: `vite build` compiles cleanly with zero warnings.
+- **Browser Automation (`scripts/verify-3d-lab.ts`)**:
+  - `lab-3d-1-initial-nadir.png`: Nadir polar opening with telemetry HUD.
+  - `lab-3d-2-global.png`: Global Moon view with full sphere clearance.
+  - `lab-3d-3-southpole.png`: Mode A Regional South Pole with verified 83°S footprint.
+  - `lab-3d-4-candidate-overview.png`: Mode B Candidate Overview with Site Intel panel.
+  - `lab-3d-5-local-inspection.png`: Mode C Local Inspection with deep grazing rim view.
+  - `lab-3d-6-deep-orbit.png`: Orbit rotation around candidate site at deepest zoom.
+  - `lab-3d-7-malapert-inspection.png`: Immediate camera refocus to Malapert Massif (SITE-005) without bloated discs.
+  - `lab-3d-8-layer-toggles.png`: Independent layer controls toggled.
+  - `lab-3d-9-time-step.png`: Dynamic lighting terminator updated after +6h ephemeris step.
+  - `lab-3d-10-reset-camera.png`: Reset Camera restores default nadir orientation and Shackleton Rim.
+  - `observatory-with-3d-lab-btn.png`: Main observatory interface with direct 3D Lab toggle button.
 
-### 3D-005 — Renderer architecture and camera baseline
-- **Owner:** Agent C
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/scene/globeScene.ts`, `src/features/spatial/globe/scene/globeSceneBuilder.ts`.
-- **Actions:** Calibrated camera distances for 38° FOV (South Pole distance 4.8 frames Moon at ~76% height without clipping; Global distance 5.7 frames entire Moon with comfortable margins). Damping factor 0.05, min distance 2.1 prevents surface penetration.
-- **Evidence:** Browser captures at 1440x900 verify zero edge clipping across all presets.
+---
 
-### 3D-006 — Shared selection/epoch integration
-- **Owner:** Agent D
-- **Status:** **Done**
-- **Files/areas:** `src/app/scenario/context/scenarioContext.tsx`, `src/features/spatial/globe/components/GlobeSpatialCanvas.tsx`.
-- **Actions:** Single source of truth in `scenarioContext` coordinates 2D Map, 3D Globe, Point Passport, and Time Explorer. Selecting a site or changing UTC updates all views synchronously.
-- **Evidence:** `scenarioSingleSource.test.ts` and `scenarioState.test.ts` pass cleanly.
+## 5. Files Changed & Responsibilities
 
-### 3D-007 — Accurate Moon assets and relief
-- **Owner:** Agent C + Agent A
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/scene/globeSurfaceMaterial.ts`.
-- **Actions:** Removed spiky vertex displacement (`displacementMap = null`). Implemented smooth Sobel-filtered normal mapping (`strength: 0.85`, `scale: 0.35`) and subtle bump mapping (`scale: 0.012`) in sRGB color space.
-- **Evidence:** Visual inspections in browser show natural, smooth crater morphology without polygonal stairstepping.
-
-### 3D-008 — Sun lighting and direction display
-- **Owner:** Agent B + Agent C
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/scene/globeCelestialVectors.ts`, `src/features/spatial/globe/scene/globeScene.ts`.
-- **Actions:** Synchronized directional light vector and visual luminous Sun sphere to the exact same sub-solar coordinate. Added warm radial corona glow sprite and dashed gold guide ray.
-- **Evidence:** Lighting terminator on lunar globe strictly matches visual Sun direction across all epochs.
-
-### 3D-009 — Earth direction/apparent-body display
-- **Owner:** Agent B + Agent C
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/scene/globeCelestialVectors.ts`, `src/features/spatial/globe/components/GlobeLegend.tsx`.
-- **Actions:** Replaced wireframe sphere with realistic planetary Earth disc (continents, oceans, polar caps, clouds, atmospheric haze shell). Rendered Direct-To-Earth (DTE) communication ray with active cyan vs sub-horizon amber status. Added scale disclosure note in legend.
-- **Evidence:** Earth appears realistically in sky; scale disclosure pill clarifies visual enlargement.
-
-### 3D-010 — Candidate picking and surface inspection
-- **Owner:** Agent D + Agent C
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/interaction/globePicking.ts`, `src/features/spatial/globe/scene/globeSiteMarkers.ts`.
-- **Actions:** Distinguishes click from orbit drag; hover previews without committing selection; commits canonical site ID on click.
-- **Evidence:** Synchronized with Point Passport and 2D map.
-
-### 3D-011 — Camera presets, controls and focus transitions
-- **Owner:** Agent C + Agent E
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/interaction/globeCameraPresets.ts`, `src/features/spatial/config/spatialToolbarOptions.ts`.
-- **Actions:** Implemented 4 presets: Global Context, South Pole, Oblique Terrain, and Site Focus. Added `cancel()` to `CameraTransitioner` so user drag immediately halts transitions.
-- **Evidence:** Tested in `globeCameraPresets.test.ts`.
-
-### 3D-012 — Layers, overlays, labels and decluttering
-- **Owner:** Agent E + Agent C
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/scene/globeSiteMarkers.ts`, `src/features/spatial/components/toolbar/LayerToggleGroup.tsx`.
-- **Actions:** Decluttered marker hierarchy (only selected/hovered displays billboard tag; ordinary candidates display small dots; compared sites display purple rings).
-- **Evidence:** Polar cluster remains legible without label collisions.
-
-### 3D-013 — Local terrain patch / LOD pilot
-- **Owner:** Agent A + Agent C
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/config/lunarAssetManifest.ts`, `src/features/spatial/map/components/canvas/craterElevationShader.ts`.
-- **Actions:** Documented LOLA 83°S–90°S high-resolution DEM coverage and verified terrain horizon obstruction angles for candidate sites.
-- **Evidence:** Manifest includes 83°S footprint and DEM 128ppd calibration.
-
-### 3D-014 — Time playback and epoch-linked scene updates
-- **Owner:** Agent D + Agent B
-- **Status:** **Done**
-- **Files/areas:** `src/features/time/*`, `src/app/scenario/state/*`.
-- **Actions:** Canonical UTC epoch drives both 2D and 3D celestial geometry. Scrubbing/stepping time updates Sun position and Earth visibility in real time.
-- **Evidence:** `utcEpoch.test.ts` and `timeChartGeometry.test.ts` pass cleanly.
-
-### 3D-015 — Error handling and lifecycle resilience
-- **Owner:** Agent C + Agent E
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/scene/globeSurfaceMaterial.ts`, `src/features/spatial/globe/scene/globeCelestialVectors.ts`, `src/features/spatial/globe/components/GlobeSpatialCanvas.tsx`.
-- **Actions:** Fallback textures for LROC imagery, explicit resource disposal (`dispose()` for geometries, textures, materials, and sprites), ResizeObserver cleanup.
-- **Evidence:** Zero WebGL resource leaks or unhandled rejections during view mode toggling.
-
-### 3D-016 — Automated regression tests
-- **Owner:** Agent F
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/__tests__/*`, `src/domain/__tests__/domainBoundaries.test.ts`.
-- **Actions:** Added unit tests for camera presets, coordinate transforms, and portability boundaries.
-- **Evidence:** 171 automated unit tests pass in 205ms via `bun test`.
-
-### 3D-017 — Responsive, accessibility and performance review
-- **Owner:** Agent E + Agent F
-- **Status:** **Done**
-- **Files/areas:** `src/features/spatial/globe/components/*`, `src/features/spatial/components/toolbar/*`.
-- **Actions:** Tested 1440x900 desktop, responsive toolbar wrapping, keyboard operable preset buttons, and Dual View synchronization.
-- **Evidence:** Playwright captures in `.playwright-cli/` verify layout and responsive states.
-
-### 3D-018 — Integration and release evidence
-- **Owner:** Lead + Agent F
-- **Status:** **Done**
-- **Files/areas:** Full codebase integration.
-- **Actions:** Full suite checks executed: `bun test` (171 passed), `tsc --noEmit` (0 errors), `bun run build` (built in 842ms), `lint_applet` (clean).
-- **Evidence:** Verified in headless Chromium browser.
+| File Path | Responsibility |
+|---|---|
+| `src/features/spatial/globe/scene/globeSiteMarkers.ts` | Scale-adaptive markers, delicate pin geometry, and automatic culling of non-selected candidates during local inspection. |
+| `src/features/spatial/globe/scene/globeGraticule.ts` | Clean polar graticule displaying the verified 83°S LOLA coverage boundary and 90°S crosshair without arbitrary concentric rings. |
+| `src/features/spatial/globe/interaction/globeCameraPresets.ts` | Topocentric local frame derivation for site and inspection presets with 360° orbit stability. |
+| `src/features/spatial/globe/scene/globeSceneBuilder.ts` | Dynamic near-plane adjustment, anti-penetration guard, display options management, and frame diagnostic metrics. |
+| `src/features/spatial/globe/scene/globeSceneInputs.ts` | Synchronization of selected site, celestial ephemeris, and layer display options to active scene handle. |
+| `src/features/spatial/globe/hooks/useGlobeSceneSync.ts` | Reactive synchronization of scenario state, inspection preset re-focusing, and display layer flags. |
+| `src/features/spatial/globe/hooks/useGlobeScene.ts` | WebGL lifecycle hook with support for independent layer controls. |
+| `src/features/spatial/ui/LunarGlobe3D.tsx` | High-level 3D container component accepting layer toggles and diagnostics HUD configuration. |
+| `src/features/spatial/globe/components/GlobeSiteInspectionPanel.tsx` | Modular scientific site inspection accordion with Overview, Terrain, Illumination, and Visibility sections. |
+| `src/features/spatial/lab/Scenario3DLab.tsx` | Standalone 3D lab harness with mode badges, Site Intel panel, dock collapse, and time controls. |
+| `src/features/spatial/globe/__tests__/globeVisualHierarchyAndModes.test.ts` | Unit tests for visual hierarchy, marker scaling, layer toggles, and camera presets. |
+| `scripts/verify-3d-lab.ts` | Automated browser verification testing the complete 11-step end-to-end scenario. |

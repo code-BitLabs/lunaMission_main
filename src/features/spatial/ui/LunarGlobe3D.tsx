@@ -34,6 +34,9 @@ export interface LunarGlobe3DProps {
   showGrid: boolean;
   showShadowRegions: boolean;
   showVectors: boolean;
+  showTerrain?: boolean;
+  showMarkers?: boolean;
+  showLabels?: boolean;
   onToggleGrid: () => void;
   onToggleShadowRegions: () => void;
   onToggleVectors: () => void;
@@ -64,6 +67,9 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
     showGrid,
     showShadowRegions,
     showVectors,
+    showTerrain,
+    showMarkers,
+    showLabels,
     onToggleGrid,
     onToggleShadowRegions,
     onToggleVectors,
@@ -94,6 +100,9 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
     showGrid,
     showShadowRegions,
     showVectors,
+    showTerrain,
+    showMarkers,
+    showLabels,
     cameraPreset,
     onCameraPresetChange,
   });

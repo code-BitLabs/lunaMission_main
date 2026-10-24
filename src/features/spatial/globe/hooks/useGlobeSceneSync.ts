@@ -24,6 +24,9 @@ export interface GlobeSceneSyncInput {
   showVectors: boolean;
   showGrid: boolean;
   showShadowRegions: boolean;
+  showTerrain?: boolean;
+  showMarkers?: boolean;
+  showLabels?: boolean;
   cameraPreset: CameraPreset;
   applyCameraPreset: (preset: CameraPreset, site: CandidateSite) => void;
 }
@@ -46,6 +49,9 @@ export function useGlobeSceneSync(input: GlobeSceneSyncInput): void {
     showVectors,
     showGrid,
     showShadowRegions,
+    showTerrain,
+    showMarkers,
+    showLabels,
     cameraPreset,
     applyCameraPreset,
   } = input;
@@ -81,8 +87,10 @@ export function useGlobeSceneSync(input: GlobeSceneSyncInput): void {
     selectedSiteIdRef.current = selectedSite.id;
     applySelectedSite(handle, selectedSite.id);
 
-    // While the owner holds the 'site' preset, keep focusing on the newly selected site.
-    if (cameraPreset === 'site') applyCameraPreset('site', selectedSite);
+    // While in 'site' or 'inspection' preset, smoothly animate camera to the newly selected candidate
+    if (cameraPreset === 'site' || cameraPreset === 'inspection') {
+      applyCameraPreset(cameraPreset, selectedSite);
+    }
   }, [handleRef, selectedSiteIdRef, selectedSite, cameraPreset, applyCameraPreset]);
 
   // Layer visibility is a preference, so groups are switched rather than rebuilt.
@@ -91,4 +99,11 @@ export function useGlobeSceneSync(input: GlobeSceneSyncInput): void {
     if (!handle) return;
     applyLayerVisibility(handle, showGrid, showShadowRegions);
   }, [handleRef, showGrid, showShadowRegions]);
+
+  // Surface, markers, and labels display options
+  useEffect(() => {
+    const handle = handleRef.current;
+    if (!handle) return;
+    handle.setDisplayOptions?.({ showTerrain, showMarkers, showLabels });
+  }, [handleRef, showTerrain, showMarkers, showLabels]);
 }

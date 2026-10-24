@@ -32,11 +32,14 @@ export interface GlobeDiagnosticsMetrics {
 
 export interface GlobeSceneHandle {
   globe: GlobeScene;
+  surfaceMesh: THREE.Mesh;
   graticuleGroup: THREE.Group;
   footprintGroup: THREE.Group;
   vectorsGroup: THREE.Group;
   markers: Map<string, SiteMarker>;
   transitioner: CameraTransitioner;
+  setSelectedSiteId?: (id: string) => void;
+  setDisplayOptions?: (opts: { showMarkers?: boolean; showLabels?: boolean; showTerrain?: boolean }) => void;
   getDiagnostics?: () => GlobeDiagnosticsMetrics;
   dispose: () => void;
 }
@@ -110,6 +113,8 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
 
   const occlusionScratch = new THREE.Vector3();
   const transitioner = createCameraTransitioner();
+  let currentSelectedSiteId = input.initialSelectedSiteId;
+  let displayOptions = { showMarkers: true, showLabels: true, showTerrain: true };
 
   // User manual drag/orbit immediately interrupts in-flight camera transitions
   const handleControlsStart = () => {
@@ -184,7 +189,14 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
       globe.camera.updateProjectionMatrix();
     }
 
-    applyMarkerHorizonOcclusion(markers, globe.camera.position, occlusionScratch);
+    applyMarkerHorizonOcclusion(
+      markers,
+      globe.camera.position,
+      globe.controls.target,
+      currentSelectedSiteId,
+      occlusionScratch,
+      displayOptions,
+    );
     globe.controls.update();
     globe.renderer.render(globe.scene, globe.camera);
   };
@@ -204,11 +216,21 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
 
   return {
     globe,
+    surfaceMesh: surface.mesh,
     graticuleGroup,
     footprintGroup,
     vectorsGroup,
     markers,
     transitioner,
+    setSelectedSiteId: (id: string) => {
+      currentSelectedSiteId = id;
+    },
+    setDisplayOptions: (opts: { showMarkers?: boolean; showLabels?: boolean; showTerrain?: boolean }) => {
+      displayOptions = { ...displayOptions, ...opts };
+      if (opts.showTerrain !== undefined) {
+        surface.mesh.visible = opts.showTerrain;
+      }
+    },
     getDiagnostics: () => cachedMetrics,
     dispose: () => {
       cancelAnimationFrame(animationId);

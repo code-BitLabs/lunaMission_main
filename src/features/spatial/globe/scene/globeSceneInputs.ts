@@ -33,6 +33,7 @@ export function applyCelestialEpoch(handle: GlobeSceneHandle, epoch: CelestialEp
 
 /** Re-highlights the marker set for the newly selected candidate. */
 export function applySelectedSite(handle: GlobeSceneHandle, selectedSiteId: string): void {
+  handle.setSelectedSiteId?.(selectedSiteId);
   updateSiteMarkerSelection(handle.markers, selectedSiteId);
 }
 
@@ -44,4 +45,12 @@ export function applyLayerVisibility(
 ): void {
   handle.graticuleGroup.visible = showGrid;
   handle.footprintGroup.visible = showShadowRegions;
+}
+
+/** Updates optional layer visibility for surface, markers, and labels. */
+export function applyDisplayLayers(
+  handle: GlobeSceneHandle,
+  options: { showTerrain?: boolean; showMarkers?: boolean; showLabels?: boolean },
+): void {
+  handle.setDisplayOptions?.(options);
 }

@@ -48,6 +48,7 @@ function meridianGeometry(lonDeg: number, segments: number, radius: number): THR
 export function createPolarFootprintGroup(): THREE.Group {
   const group = new THREE.Group();
 
+  // The verified LOLA DEM regional coverage boundary (83°S to 90°S)
   const boundary = new THREE.Line(
     circleGeometry(MAP_FOOTPRINT_LATITUDE_DEG, FULL_CIRCLE_SEGMENTS, MOON_SCENE_RADIUS * FOOTPRINT_RING_LIFT),
     new THREE.LineDashedMaterial({
@@ -61,15 +62,6 @@ export function createPolarFootprintGroup(): THREE.Group {
   );
   boundary.computeLineDistances();
   group.add(boundary);
-
-  FOOTPRINT_LATITUDE_RING_DEG.forEach((lat) => {
-    group.add(
-      new THREE.Line(
-        circleGeometry(lat, FULL_CIRCLE_SEGMENTS, MOON_SCENE_RADIUS * INNER_RING_LIFT),
-        new THREE.LineBasicMaterial({ color: SUPPORTING_LINE_COLOR, transparent: true, opacity: 0.45 }),
-      ),
-    );
-  });
 
   const crosshairRadius = MOON_SCENE_RADIUS * CROSSHAIR_LIFT;
   const crosshairMat = new THREE.LineBasicMaterial({ color: SELECTED_SITE_LINE_COLOR, transparent: true, opacity: 0.75 });

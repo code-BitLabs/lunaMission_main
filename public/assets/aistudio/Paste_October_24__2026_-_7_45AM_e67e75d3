@@ -1,0 +1,851 @@
+# LunaMission — South Pole Explorer and 3D Lab
+## Master Implementation Specification
+
+**Mission:** Transform the existing 3D lunar experience into a clean, smooth, extensible, scientifically grounded South Pole Explorer. Fix deep-zoom degradation, camera-control failures, visual clutter, landing-site selection ambiguity, fullscreen problems, and UI edge cases.
+
+This is a production implementation task. Inspect the existing repository, reproduce problems, fix their causes, add tests, run the actual application in a browser, and provide evidence.
+
+Do not stop after producing a plan or mockup. Do not mark work complete just because the code compiles.
+
+---
+
+# 1. Product experience and design principles
+
+The South Pole Explorer should feel like a scientific instrument, not a game HUD or a decorative 3D globe.
+
+Users must be able to:
+
+1. See the Moon and understand where the south-polar region is.
+2. Enter a dedicated South Pole view.
+3. Compare candidate landing sites without overlapping labels.
+4. Select a site and understand exactly which location is selected.
+5. Zoom toward that site progressively.
+6. Orbit, pan, and inspect terrain at close range.
+7. Understand the relationship between local terrain, sunlight, shadows, and the selected UTC epoch.
+8. Inspect site metadata, terrain-data coverage, and scientific limitations.
+9. Recover from bad camera states, failed asset loading, or accidental navigation.
+10. Return to the overview without losing the selected site or scientific time.
+
+## Non-negotiable principles
+
+- Clarity over decoration.
+- Scientific truth over visual drama.
+- Smooth controls over elaborate effects.
+- Progressive disclosure over permanent overlays.
+- Real measured terrain over invented surface detail.
+- One selected site at a time.
+- One authoritative scenario state.
+- Independent testing of the 3D experience.
+- Modular features that can grow without a giant component.
+- Graceful degradation when data or rendering capabilities are unavailable.
+
+Never fake resolution, terrain accuracy, scientific calculations, or test results.
+
+---
+
+# 2. Step 1 — Inspect and reproduce the current problems
+
+Before editing, inspect the existing scene, camera controls, candidate markers, terrain assets, state management, and renderer.
+
+Reproduce the following from the current screenshot and application:
+
+- Selected-site label overlaps other markers.
+- Multiple markers obscure the center of the view.
+- Concentric rings and dashed circles have unclear meanings.
+- The terrain looks stretched, blurry, or streaky at extreme zoom.
+- Camera zoom reaches a maximum before useful local inspection.
+- Orbit sometimes stops or becomes unstable near the site.
+- Camera focus can drift away from the selected site.
+- Fullscreen navigation becomes slow or unresponsive.
+- Candidate labels collide when several sites are close together.
+- Site changes can leave visual overlays at stale positions.
+- UTC changes may leave stale Sun/Earth geometry.
+- Resizing or fullscreen transitions may break the canvas or controls.
+
+For each failure, record:
+1. Reproduction steps.
+2. Expected behavior.
+3. Actual behavior.
+4. Relevant code path.
+5. Confirmed root cause or explicitly unresolved hypothesis.
+6. Regression test.
+
+Use the existing project and preserve its current working scientific calculations unless evidence proves a defect.
+
+---
+
+# 3. Step 2 — Build an independent 3D laboratory
+
+Create a route such as `/scenario/3d-lab`.
+
+The route must load the same real production scene and scientific state used by the normal application. Do not create a disconnected demo with mocked geometry and pretend it validates production behavior.
+
+## Laboratory requirements
+
+- Direct navigation to the route works.
+- The scene occupies nearly the full viewport.
+- Unrelated dashboard charts and panels are not mounted.
+- Minimal controls are provided for testing.
+- The selected candidate and UTC epoch are visible.
+- Fullscreen entry and exit work.
+- Browser viewport resizing works.
+- The scene recovers after tab visibility changes.
+- The test route can reproduce a camera state deterministically.
+- A reset action restores a known camera and selection.
+- Diagnostics are available in development builds.
+- Production builds do not expose unnecessary diagnostic controls.
+
+Provide these camera actions:
+- Global Moon
+- South Pole
+- Candidate Overview
+- Local Inspection
+- Reset Camera
+
+Provide these development diagnostics where supported:
+- Current camera mode.
+- Camera-to-target distance.
+- Selected site identifier.
+- Selected site coordinates.
+- Current UTC epoch.
+- Renderer pixel ratio.
+- Draw calls and triangle count.
+- Frame-time statistics.
+- Asset-loading status.
+- Terrain coverage/resolution metadata.
+- Active render-loop or scene lifecycle information.
+
+If a metric cannot be measured reliably, display "Unavailable" rather than inventing a value.
+
+The laboratory must be usable for both automated browser testing and manual inspection.
+
+---
+
+# 4. Step 3 — Rebuild the South Pole visual hierarchy
+
+The current screenshot has too many competing circles, rings, markers, and lines. Define a deliberate visual hierarchy.
+
+## A. Primary layer: terrain
+
+Terrain is the main visual surface.
+
+- Preserve readable lunar relief and crater structure.
+- Avoid overexposed lighting and excessive contrast that destroys detail.
+- Use a restrained scientific palette.
+- Ensure labels and markers do not dominate the terrain.
+- Avoid aggressive sharpening, noisy overlays, or artificial radial streaks.
+- Preserve meaningful shadow boundaries.
+- Do not add unsupported terrain displacement merely to make the surface look dramatic.
+
+If the terrain looks stretched at close range, inspect texture filtering, UV mapping, geometry resolution, normal-map scaling, mipmaps, anisotropic filtering, and camera clipping. Fix the cause instead of applying a cosmetic blur.
+
+## B. Secondary layer: candidate sites
+
+Each candidate must have a clear identity and a predictable visual state.
+
+Define explicit visual states:
+
+1. Unselected candidate.
+2. Hovered candidate.
+3. Selected candidate.
+4. Candidate under focus transition.
+5. Candidate with incomplete metadata.
+6. Candidate outside verified regional terrain coverage.
+7. Candidate unavailable or invalid.
+
+The selected site should use one dominant marker with a thin, restrained selection outline.
+
+Do not draw several thick concentric rings around every candidate.
+
+Unselected candidates should be smaller and quieter than the selected candidate. Hover should improve visibility without changing selection.
+
+A candidate marker must be anchored to its actual projected location, not an arbitrary screen position.
+
+When terrain elevation is available, use the documented surface-intersection method. When it is unavailable, use the supported geometric location and label the limitation.
+
+## C. Tertiary layer: orientation and scientific overlays
+
+Every overlay must answer a real question.
+
+- Crosshair: identifies the camera target only when useful.
+- Site marker: identifies a candidate's actual location.
+- Sun vector: identifies a documented direction or projection.
+- Earth sightline: identifies a documented geometric line of sight.
+- Scale indicator: communicates a meaningful, correctly calculated scale.
+- Coordinate grid: communicates a defined coordinate frame.
+- Selection ring: indicates selection only, not scientific distance unless explicitly labeled.
+
+Remove any overlay that has no clear definition, coordinate frame, or user benefit.
+
+Do not render multiple concentric rings merely to create a futuristic appearance.
+
+Sun and Earth directions in the local horizon frame must not be interpreted as geographic map directions without a documented transformation.
+
+## D. Labels
+
+At the regional scale:
+- Show only the most useful candidate labels.
+- Avoid overlapping labels.
+- Prioritize the selected candidate.
+- Allow a label to be hidden without hiding the underlying candidate.
+- Use collision-aware placement or deterministic decluttering.
+- Use a restrained leader line when necessary.
+
+At the local scale:
+- Keep the selected-site identity available.
+- Reduce or hide distant candidate labels.
+- Do not let a large site-name badge obscure the terrain immediately around the target.
+- Prefer a compact label panel outside the terrain viewport or a small marker-associated label.
+
+Labels must remain readable without flickering, jumping, or rapidly switching positions during camera movement.
+
+If multiple labels cannot fit, show fewer labels and provide access through a candidate list or selection panel.
+
+---
+
+# 5. Step 4 — Implement three deliberate exploration scales
+
+The experience must have clear navigation modes rather than one continuous camera range with no change in information density.
+
+## Mode A: Regional South Pole
+
+Purpose: understand the polar region and compare candidates.
+
+- Show the south-polar terrain and its geographic context.
+- Show candidate markers with limited labels.
+- Show a clear selected-site indicator.
+- Keep the camera stable and the terrain recognizable.
+- Allow the user to select a candidate directly.
+- Show the verified terrain-data coverage boundary when relevant.
+- Do not crowd the region with all scientific vectors, rings, and labels.
+
+## Mode B: Candidate Overview
+
+Purpose: inspect one candidate and its surroundings.
+
+- Center the camera on the selected site.
+- Keep enough terrain visible to understand the local crater, ridge, or regional context.
+- Reduce unrelated candidate markers and labels.
+- Display a compact site information panel.
+- Make the selected coordinates accessible.
+- Provide a clear transition into Local Inspection.
+- Keep camera movement centered on the selected site unless the user deliberately pans.
+
+## Mode C: Local Inspection
+
+Purpose: inspect supported local terrain and illumination.
+
+- Use an oblique view by default.
+- Allow the user to orbit around the selected location.
+- Preserve stable orientation and predictable controls.
+- Show local terrain at the best available supported resolution.
+- Keep only the overlays needed for local inspection.
+- Offer a way to toggle terrain, illumination, and scientific vectors independently.
+- Display terrain source, coverage, and resolution when available.
+- Clearly label geometry-only views when terrain data does not support a detailed inspection.
+
+The interface must visibly indicate the current mode.
+
+Provide a reliable way to return to Candidate Overview or Regional South Pole without losing the selected site or UTC epoch.
+
+Do not use abrupt camera jumps between modes. Use bounded, interruptible transitions.
+
+---
+
+# 6. Step 5 — Fix deep zoom and camera reliability
+
+Investigate the current camera-control implementation before changing it.
+
+Do not simply increase `maxDistance`, decrease `minDistance`, or remove all zoom limits.
+
+## Zoom requirements
+
+- Support progressive zoom from global context to the deepest supported local scale.
+- Calculate reasonable limits from scene scale, camera field of view, target scale, terrain coverage, and available geometry.
+- Keep the camera's near and far clipping planes appropriate for the current viewing range.
+- Avoid clipping terrain at close range.
+- Avoid z-fighting and depth precision problems.
+- Avoid camera penetration into the Moon or terrain.
+- Preserve useful depth and perspective.
+- Keep zoom speed consistent across scale changes.
+- Prevent the camera from jumping when a new target is selected.
+- Allow zoom toward the pointer when reliably supported, or toward the selected-site target.
+- Make it possible to zoom back out from every valid state.
+
+## Important distinction
+
+Camera zoom is not terrain detail.
+
+When a user zooms closer than the source data can resolve:
+- Do not invent small craters or elevation variation.
+- Do not exaggerate normal maps to imply measured relief.
+- Do not imply centimeter- or meter-scale accuracy unless the dataset supports it.
+- Communicate the limitation in the site inspector or terrain metadata panel.
+- Consider limiting the deepest useful inspection scale based on verified data resolution.
+
+## Orbit requirements
+
+- Orbit remains functional at the deepest supported zoom.
+- Maintain a stable camera target.
+- Support polar orientations without singularities.
+- Avoid camera flips and sudden changes in the up vector.
+- Keep pointer gestures responsive.
+- Separate orbit, pan, zoom, and click-to-select interactions.
+- Handle pointer cancellation and lost pointer capture.
+- Prevent accidental site selection at the end of a drag.
+- Restore interaction after a fullscreen change, resize, or interrupted gesture.
+- Ensure site selection does not trigger a competing camera animation.
+
+If the camera target is updated, preserve a coherent camera position and orientation.
+
+Use the existing camera-control library's documented capabilities rather than creating a second competing control system.
+
+---
+
+# 7. Step 6 — Make the landing-site interface clean and extensible
+
+Create a dedicated site-selection and inspection experience.
+
+## Site selection
+
+Provide:
+- A candidate list or compact site selector.
+- Search or filtering if the existing catalog supports it.
+- A clear selected state.
+- Keyboard-accessible selection.
+- A reset/clear selection action where meaningful.
+- A stable selected-site identifier.
+- Coordinates and source metadata.
+- A clear distinction between official candidate regions, historical study points, and custom coordinates where applicable.
+
+Selecting a candidate must update the shared scenario state once. The 3D marker, camera target, site information panel, and linked scientific views must derive from that state.
+
+Do not maintain independent copies of the selected site in multiple components.
+
+## Site information panel
+
+Organize information into expandable sections:
+
+**Overview**
+- Site name and stable identifier.
+- Latitude and longitude.
+- Site classification or catalog relationship.
+- Source and provenance.
+
+**Terrain**
+- Available terrain source.
+- Verified coverage.
+- Dataset resolution or sampling scale.
+- Terrain-data availability.
+- No-data or incomplete coverage warnings.
+
+**Illumination**
+- UTC epoch.
+- Solar elevation/azimuth only when calculated and labeled in the correct frame.
+- Relevant illumination information supported by the model.
+- Clear distinction between computed results and illustrative graphics.
+
+**Visibility**
+- Geometric Earth line-of-sight status where validated.
+- Terrain obstruction status only where terrain-aware calculation exists.
+- Unknown status when inputs are insufficient.
+- No inference that geometric visibility proves RF communication availability.
+
+Do not display empty cards with fake zero values. Hide unavailable metrics or display an explicit unknown state.
+
+## Extensibility
+
+Implement the site panel so future sections can be added without rewriting the entire scene.
+
+Use a modular feature structure compatible with the existing repository. For example:
+
+`features/spatial/globe/`
+- `scene/`
+- `camera/`
+- `controls/`
+- `layers/`
+- `interaction/`
+- `hooks/`
+- `services/`
+- `components/`
+- `tests/`
+
+Candidate selection and metadata should remain in the appropriate candidate-domain feature.
+
+Use these folders as a responsibility guide, not a requirement to create empty files or duplicate abstractions. Adapt the actual structure to the existing project.
+
+Keep:
+- Rendering components responsible for presentation.
+- Camera controller responsible for navigation.
+- Scene layer modules responsible for their own visual objects.
+- Domain/service modules responsible for pure calculations and transformations.
+- Hooks responsible for client orchestration.
+- Shared scenario state responsible for the authoritative site and UTC epoch.
+
+Do not put all scene, camera, state, scientific calculations, and UI into one component.
+
+---
+
+# 8. Step 7 — Define layer-toggle behavior
+
+Provide independent controls for relevant layers:
+
+- Terrain.
+- Candidate sites.
+- Site labels.
+- Coordinate grid.
+- Sun direction.
+- Earth sightline.
+- Illumination/shadow visualization.
+- Terrain coverage boundary.
+- Diagnostic overlays in development mode.
+
+For each toggle:
+- The visible state matches the actual rendered state.
+- Turning off labels does not hide candidate markers.
+- Turning off the Sun vector does not change the Sun's scientific position.
+- Turning off the Earth sightline does not change its calculated status.
+- Turning off a visual layer does not delete the underlying scientific data.
+- Re-enabling a layer restores the correct current state.
+- Changing site or UTC while a layer is hidden must not leave stale geometry when the layer is restored.
+- Unsupported layers must be disabled or explicitly unavailable rather than appearing to work.
+
+Avoid adding controls for layers that do not exist or have no validated implementation.
+
+---
+
+# 9. Step 8 — Performance and lifecycle hardening
+
+Measure actual bottlenecks before optimizing.
+
+Investigate:
+- Multiple active animation loops.
+- Unnecessary React rerenders during camera motion.
+- Excessive device pixel ratio.
+- Expensive shadows and post-processing.
+- Excessive draw calls and triangle counts.
+- Repeated geometry/material/texture creation.
+- Expensive work triggered on every pointer event.
+- Recomputing ephemerides when the inputs have not changed.
+- Heavy asset decoding or upload on the main thread.
+- Unreleased WebGL resources.
+- Duplicate event listeners.
+- Observer or control instances surviving scene teardown.
+- Excessive memory use after repeated fullscreen transitions.
+
+Implement evidence-supported improvements.
+
+Requirements:
+- One active render loop per scene.
+- Reuse resources where practical.
+- Keep high-frequency camera updates outside React state when appropriate.
+- Update UI diagnostics at a controlled cadence.
+- Avoid regenerating terrain or textures during ordinary camera movement.
+- Dispose resources and listeners when their owning scene is destroyed.
+- Correctly resize renderer, camera aspect ratio, and controls.
+- Pause or reduce nonessential rendering when the tab is hidden where appropriate.
+- Resume correctly when the tab becomes visible.
+- Provide graceful loading and failure states.
+- Avoid quality changes that visibly oscillate or cause constant terrain popping.
+
+Fullscreen must not cause the scene to mount twice or create another render loop.
+
+If adaptive rendering quality is implemented, document its thresholds and ensure it never changes the scientific geometry or displayed measurements.
+
+---
+
+# 10. Step 9 — Handle UI and interaction edge cases
+
+Implement and test all applicable cases below.
+
+## A. Loading and initialization
+
+1. Scene is loading.
+2. Terrain texture is slow to load.
+3. One optional texture fails.
+4. Regional DEM is missing.
+5. Asset manifest is invalid.
+6. WebGL is unavailable.
+7. WebGL context creation fails.
+8. WebGL context is lost during use.
+9. Scene initialization throws an error.
+10. The route is opened directly in a new tab.
+11. The route is refreshed while a candidate is selected.
+12. The scene loads with no valid candidate selected.
+
+Expected behavior:
+- Show a meaningful loading state.
+- Distinguish required assets from optional assets.
+- Preserve usable geometry-only context where possible.
+- Show an actionable fallback if WebGL cannot initialize.
+- Do not leave an infinite spinner.
+- Do not silently claim that missing terrain is loaded.
+- Allow a supported retry after recoverable failures.
+
+## B. Candidate data and selection
+
+13. No candidates are available.
+14. A candidate has missing metadata.
+15. Two candidates have nearby or identical projected positions.
+16. A candidate lies outside regional DEM coverage.
+17. A candidate identifier is unknown.
+18. Candidate selection changes while the camera is animating.
+19. The selected candidate is removed or invalidated.
+20. The candidate list and 3D scene are temporarily out of sync.
+21. The user clicks a label instead of the marker.
+22. The user clicks empty space.
+23. The user double-clicks a candidate.
+24. The user rapidly switches between candidates.
+
+Expected behavior:
+- Preserve one authoritative selection.
+- Do not leave multiple sites marked selected.
+- Interrupt or safely replace outdated camera transitions.
+- Do not crash on missing metadata.
+- Show unknown or unsupported values explicitly.
+- Avoid accidental selection when clicking empty terrain.
+- Ensure duplicate screen positions remain selectable through the list.
+
+## C. Camera and navigation
+
+25. Zoom reaches the supported minimum distance.
+26. Zoom reaches the maximum distance.
+27. User attempts to zoom beyond available terrain resolution.
+28. User orbits near a polar orientation.
+29. Camera target is coincident with the camera position.
+30. Camera target becomes invalid or non-finite.
+31. User pans until the selected site leaves the viewport.
+32. User changes presets during a camera transition.
+33. User changes the selected site during a camera transition.
+34. User interrupts an animation with a manual drag.
+35. Pointer moves outside the canvas during a drag.
+36. Pointer cancellation occurs.
+37. Browser loses focus during an interaction.
+38. Mouse wheel events arrive rapidly.
+39. Touch gestures occur where supported.
+40. The user loses the selected site and presses Reset Camera.
+
+Expected behavior:
+- Keep camera values finite.
+- Use bounded camera constraints.
+- Cancel or supersede old transitions deterministically.
+- Restore a stable camera state.
+- Never leave controls permanently disabled.
+- Provide an easy recovery action.
+- Do not silently force the user back to an unrelated global target.
+
+## D. Fullscreen and viewport
+
+41. Enter fullscreen.
+42. Exit fullscreen using the browser's Escape behavior.
+43. Fullscreen request is denied.
+44. Browser fullscreen state changes outside the app.
+45. Viewport is resized rapidly.
+46. Device orientation changes.
+47. Browser zoom changes.
+48. Browser tab becomes hidden and visible again.
+49. A side panel opens or closes.
+50. The browser enters fullscreen while a camera transition is active.
+51. The user exits fullscreen during a drag.
+
+Expected behavior:
+- Keep canvas dimensions and camera aspect ratio correct.
+- Handle rejected fullscreen requests.
+- Keep the UI state synchronized with the real browser fullscreen state.
+- Restore controls after every transition.
+- Avoid duplicate render loops and observers.
+- Preserve the selected site and UTC epoch.
+- Avoid distorted terrain or a stale viewport.
+
+## E. Scientific state
+
+52. UTC epoch changes during camera motion.
+53. UTC epoch changes while a visual layer is hidden.
+54. Selected site changes while UTC changes.
+55. Ephemeris calculation fails.
+56. Sun vector is invalid.
+57. Earth elevation is unknown.
+58. Terrain horizon data is unavailable.
+59. Terrain coverage is incomplete.
+60. Coordinate transformation fails.
+61. A visual vector becomes stale.
+62. A local-horizon vector is mistakenly projected into geographic coordinates.
+63. The site has no verified terrain-aware horizon result.
+
+Expected behavior:
+- Separate invalid, unknown, below-horizon, and visible states.
+- Clear stale visual objects instead of retaining old values.
+- Do not substitute zero for an unknown scientific quantity.
+- Do not conflate geometric sightline, terrain obstruction, RF feasibility, or actual communication success.
+- Keep all linked views synchronized to the same site and UTC epoch.
+- Do not let camera movement change scientific calculations.
+
+## F. Visual and accessibility behavior
+
+64. Labels overlap.
+65. The selected label covers the terrain target.
+66. Too many candidates are visible.
+67. The selection color is indistinguishable from the terrain.
+68. A layer toggle does not match its rendered state.
+69. Text becomes unreadable in fullscreen.
+70. Reduced-motion preference is enabled.
+71. Keyboard-only navigation is used.
+72. Focus moves into or out of the canvas.
+73. A status message appears while the user is navigating.
+74. A panel obscures a camera control.
+
+Expected behavior:
+- Declutter labels before shrinking text excessively.
+- Keep the selected site distinguishable without excessive glowing rings.
+- Ensure essential controls are keyboard accessible.
+- Respect reduced motion.
+- Keep the canvas and surrounding controls usable at supported viewport sizes.
+- Never rely on color alone to convey a scientific status.
+- Avoid abrupt camera motion for users who prefer reduced motion.
+
+## G. Performance and lifecycle
+
+75. User repeatedly enters and exits fullscreen.
+76. User switches between sites repeatedly.
+77. User rapidly switches camera presets.
+78. Route mounts and unmounts repeatedly.
+79. The tab remains open for an extended period.
+80. A large texture upload stalls a frame.
+81. Renderer resource usage increases after repeated transitions.
+82. The GPU is under heavy load.
+83. The browser reports WebGL context loss.
+84. The user navigates away while assets are loading.
+
+Expected behavior:
+- No accumulating animation loops, event listeners, or observers.
+- No progressive slowdown caused by repeated transitions.
+- Graceful degradation under constrained hardware.
+- Recoverable WebGL context loss where practical.
+- Cancel or ignore asynchronous results after teardown.
+- Dispose only resources owned by the scene and avoid destroying shared resources still in use.
+
+Do not add speculative complexity for unsupported interactions. Identify which cases apply to the actual application and record any explicitly out-of-scope cases.
+
+---
+
+# 11. Step 10 — Automated test requirements
+
+Use the project's existing testing tools.
+
+## Unit tests
+
+Test:
+- Camera distance limits.
+- Camera transition cancellation.
+- Stable orbit targets.
+- Finite camera positions and orientations.
+- Site coordinate transformations.
+- Candidate selection state.
+- Label visibility rules.
+- Layer-toggle independence.
+- Invalid and missing terrain metadata.
+- Stale-vector cleanup.
+- UTC/site synchronization.
+- Correct handling of unknown scientific values.
+- Reduced-motion behavior where applicable.
+
+Avoid tests that merely assert a helper returns a hardcoded expected value without validating its behavior.
+
+## Component/integration tests
+
+Test:
+- Loading, error, empty, and unsupported-data states.
+- Candidate selection and site-panel updates.
+- Camera preset selection.
+- Layer-toggle behavior.
+- Selection and camera synchronization.
+- Recovery after failed scene initialization.
+- Error messages and retry actions.
+- Cleanup when the scene unmounts.
+
+## Browser tests
+
+Use the actual standalone `/scenario/3d-lab` route.
+
+Execute this exact scenario:
+
+1. Open the lab in a fresh tab.
+2. Wait for the scene and required assets to finish loading.
+3. Capture the initial Global Moon view.
+4. Enter fullscreen.
+5. Switch to South Pole.
+6. Verify that the terrain and candidate markers are legible.
+7. Select a candidate through the UI.
+8. Verify that the marker and site information identify the same candidate.
+9. Enter Candidate Overview.
+10. Zoom inward repeatedly to the supported local scale.
+11. Orbit in both directions at the deepest supported scale.
+12. Pan and zoom back out.
+13. Toggle labels, candidate markers, terrain, and scientific vectors independently.
+14. Hide the Sun vector, change UTC, and show the vector again.
+15. Verify that the vector reflects the new epoch.
+16. Select a different candidate during a camera transition.
+17. Verify that the old transition does not override the new target.
+18. Resize the viewport while zoomed in.
+19. Exit and re-enter fullscreen.
+20. Verify that rotation, zoom, and selection still work.
+21. Navigate away and back to the lab.
+22. Repeat the interaction sequence.
+23. Check for console errors, failed required assets, stale markers, and increasing resource counts.
+24. Reset Camera and return to Global Moon.
+
+Capture screenshots for:
+- Global Moon.
+- South Pole regional view.
+- Candidate Overview.
+- Deepest supported Local Inspection.
+- A candidate with incomplete terrain coverage.
+- A layer-disabled state.
+- Fullscreen after resizing.
+- A recoverable error state.
+
+Capture browser traces or frame-time measurements where possible.
+
+If the browser environment cannot exercise a particular case, report it as unverified rather than marking it passed.
+
+---
+
+# 12. Step 11 — Performance acceptance criteria
+
+Establish a baseline before implementation and compare after implementation on the same machine, browser, viewport, and scene.
+
+Measure:
+- Median frame time.
+- 95th-percentile frame time.
+- Long frames during camera movement.
+- Draw calls and triangles.
+- Texture and geometry resource counts where available.
+- Time to usable scene.
+- Interaction latency where measurable.
+- Performance before and after repeated fullscreen transitions.
+
+Use approximately 16.7 ms per frame as the reference budget for 60 FPS, not as a universal hardware guarantee.
+
+Do not report only average FPS.
+
+Separate:
+- Startup and asset-loading stalls.
+- GPU rendering bottlenecks.
+- Main-thread computation.
+- Camera-control/input latency.
+- Progressive memory or resource degradation.
+
+Acceptance:
+- No reproducible control freeze at the supported local zoom.
+- No progressive slowdown after repeated interactions caused by leaked resources or duplicate loops.
+- No broken camera after fullscreen or resize.
+- No visual degradation caused by an arbitrary quality reduction without documented justification.
+- Any remaining performance limitations are reproducible and explicitly documented.
+
+Do not fabricate measurements when profiling APIs or browser access are unavailable.
+
+---
+
+# 13. Step 12 — Scientific acceptance criteria
+
+The 3D scene must clearly distinguish visual representation from validated science.
+
+Verify:
+- The selected site maps to the correct geographic coordinates.
+- The site marker is positioned using the documented coordinate transformation.
+- The selected site and UTC epoch are shared across the scene and linked views.
+- Sun direction is calculated in the correct reference frame.
+- Local solar elevation and azimuth use the appropriate local frame.
+- Terrain coverage and resolution are based on actual asset metadata.
+- Local terrain inspection does not imply greater accuracy than the source data supports.
+- Earth geometric line of sight is not labeled as RF connectivity.
+- Terrain obstruction is reported only when a valid terrain-aware calculation exists.
+- Unknown inputs do not silently become valid-looking scientific outputs.
+
+Where possible, compare scientific calculations against an independent reference implementation at several epochs and locations.
+
+Report the reference method, coordinate frame, time convention, test inputs, residuals, tolerances, and limitations.
+
+Do not treat visual alignment as independent scientific validation.
+
+---
+
+# 14. Step 13 — Implementation sequence
+
+Execute the work in this order. Keep the application runnable after each phase.
+
+### Phase A — Baseline and reproduction
+- Inspect code and assets.
+- Reproduce current failures.
+- Capture screenshots and measurements.
+- Create a prioritized bug list.
+
+### Phase B — Independent laboratory
+- Add `/scenario/3d-lab`.
+- Reuse production scene and state.
+- Add minimal test controls and diagnostics.
+- Verify direct loading and fullscreen.
+
+### Phase C — Camera and interaction
+- Fix deep zoom, orbit, pan, target stability, and clipping.
+- Fix click-versus-drag behavior.
+- Fix preset transitions and recovery.
+- Add camera regression tests.
+
+### Phase D — Visual hierarchy
+- Declutter markers and labels.
+- Remove redundant rings and ambiguous overlays.
+- Implement the three exploration scales.
+- Add clean site-selection and inspection panels.
+- Test every layer toggle.
+
+### Phase E — Terrain and scientific state
+- Validate asset metadata and coverage.
+- Improve close-up terrain rendering only within supported data limits.
+- Validate site positions and scientific vectors.
+- Add missing/unknown/invalid states.
+
+### Phase F — Performance and lifecycle
+- Profile bottlenecks.
+- Implement measured optimizations.
+- Test resource cleanup and repeated fullscreen use.
+- Compare before/after measurements.
+
+### Phase G — Edge-case and browser verification
+- Run unit and integration tests.
+- Execute the browser scenario.
+- Capture evidence.
+- Fix regressions.
+
+### Phase H — Final verification and handoff
+- Run type checking.
+- Run lint.
+- Run the relevant test suites.
+- Run the production build.
+- Update the workplan with real status and evidence.
+- Document remaining limitations.
+
+Do not start a new visual redesign while camera controls, scientific state, or resource lifecycle remains broken.
+
+---
+
+# 15. Required deliverables
+
+At completion, provide:
+
+1. Root causes confirmed and fixed.
+2. Files changed and each file's responsibility.
+3. Description of the new camera and exploration modes.
+4. Explanation of how deep zoom is bounded by terrain resolution.
+5. Performance baseline and after measurements.
+6. Test commands and exact results.
+7. Browser screenshots from the actual standalone lab.
+8. Results for the specified browser navigation sequence.
+9. Scientific reference comparisons and residuals where available.
+10. Known limitations and unverified cases.
+11. Updated `AGENT_WORKPLAN.md`.
+12. Follow-up tasks, each with a clear reason and acceptance criterion.
+
+Only mark tasks Done when there is implementation evidence and a passing test, measurement, or reproducible manual verification.
+
+**Start now with Phase A. Inspect the repository and reproduce the bugs before making changes. Continue through the phases in order, keeping the lab testable throughout.**

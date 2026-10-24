@@ -58,13 +58,17 @@ export function cameraPoseForPreset(preset: CameraPreset, site: CandidateSite): 
       MOON_SCENE_RADIUS,
     );
     const siteNormal = sitePos.clone().normalize();
+    const northDir = new THREE.Vector3(0, 1, 0);
+    const tangent = northDir.clone().sub(siteNormal.clone().multiplyScalar(northDir.dot(siteNormal))).normalize();
+    if (tangent.lengthSq() < 0.01) tangent.set(0, 0, 1);
+
     return {
       camPos: sitePos
         .clone()
-        .add(siteNormal.clone().multiplyScalar(SITE_CAMERA_ALTITUDE))
-        .add(new THREE.Vector3(0, -SITE_CAMERA_TILT, SITE_CAMERA_TILT)),
+        .add(siteNormal.clone().multiplyScalar(1.20))
+        .add(tangent.clone().multiplyScalar(0.40)),
       lookTarget: sitePos.clone(),
-      upVector: new THREE.Vector3(0, 0, 1),
+      upVector: siteNormal.clone(),
     };
   }
   if (preset === 'inspection') {
@@ -74,13 +78,18 @@ export function cameraPoseForPreset(preset: CameraPreset, site: CandidateSite): 
       MOON_SCENE_RADIUS,
     );
     const siteNormal = sitePos.clone().normalize();
+    const northDir = new THREE.Vector3(0, 1, 0);
+    const tangent = northDir.clone().sub(siteNormal.clone().multiplyScalar(northDir.dot(siteNormal))).normalize();
+    if (tangent.lengthSq() < 0.01) tangent.set(0, 0, 1);
+
+    // Oblique grazing perspective across crater rims at ~28° elevation
     return {
       camPos: sitePos
         .clone()
-        .add(siteNormal.clone().multiplyScalar(INSPECTION_CAMERA_ALTITUDE))
-        .add(new THREE.Vector3(0, -INSPECTION_CAMERA_TILT, INSPECTION_CAMERA_TILT)),
+        .add(siteNormal.clone().multiplyScalar(0.085))
+        .add(tangent.clone().multiplyScalar(0.045)),
       lookTarget: sitePos.clone(),
-      upVector: new THREE.Vector3(0, 0, 1),
+      upVector: siteNormal.clone(),
     };
   }
   // Global context: complete Moon with safe margins and clear view of southern candidate region

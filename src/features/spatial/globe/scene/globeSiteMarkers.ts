@@ -10,33 +10,34 @@ const DIM_COLOR = 0x334155;
 const UNSELECTED_BEACON_COLOR = 0x38bdf8; // Muted blue for ordinary candidates
 
 /** Markers float slightly off the surface to avoid z-fighting without floating high above terrain. */
-const SURFACE_LIFT = 1.003;
-const STALK_HEIGHT = 0.038;
-const BADGE_LIFT = 0.030;
+const SURFACE_LIFT = 1.002;
+const STALK_HEIGHT = 0.016;
+const BADGE_LIFT = 0.018;
 
-const RING_INNER_RADIUS = 0.012;
-const RING_OUTER_RADIUS = 0.018;
-const RING_SEGMENTS = 24;
-const BEACON_RADIUS = 0.010;
+// Restrained, precision dimensions so markers never balloon into giant discs
+const RING_INNER_RADIUS = 0.0055;
+const RING_OUTER_RADIUS = 0.0075;
+const RING_SEGMENTS = 32;
+const BEACON_RADIUS = 0.0035;
 const BEACON_SEGMENTS = 16;
-/** Generous invisible proxy sphere keeps click/touch selection 100% reliable. */
-const HIT_PROXY_RADIUS = 0.065;
+/** Invisible proxy sphere keeps click/touch selection 100% reliable. */
+const HIT_PROXY_RADIUS = 0.045;
 const HIT_PROXY_SEGMENTS = 10;
 
 const SELECTED_OPACITY = 0.95;
-const DIM_OPACITY_AT_BUILD = 0.6;
-const DIM_RING_OPACITY = 0.5;
-const DIM_STALK_OPACITY = 0.4;
-const SELECTED_RING_SCALE = 1.45;
-const SELECTED_BEACON_SCALE = 1.4;
+const DIM_OPACITY_AT_BUILD = 0.45;
+const DIM_RING_OPACITY = 0.35;
+const DIM_STALK_OPACITY = 0.35;
+const SELECTED_RING_SCALE = 1.25;
+const SELECTED_BEACON_SCALE = 1.2;
 
 /** A marker over this much of the far limb is hidden by the horizon curve. */
 const HORIZON_OCCLUSION_DOT = -0.05;
 
-const BADGE_CANVAS_WIDTH = 240;
-const BADGE_CANVAS_HEIGHT = 56;
-const BADGE_PILL = { x: 4, y: 4, width: 232, height: 48, cornerRadius: 10 } as const;
-const BADGE_TEXT_ORIGIN = { x: 120, y: 28 } as const;
+const BADGE_CANVAS_WIDTH = 220;
+const BADGE_CANVAS_HEIGHT = 52;
+const BADGE_PILL = { x: 4, y: 4, width: 212, height: 44, cornerRadius: 8 } as const;
+const BADGE_TEXT_ORIGIN = { x: 110, y: 26 } as const;
 
 function roundedPillPath(ctx: CanvasRenderingContext2D): void {
   const { x, y, width: w, height: h, cornerRadius: r } = BADGE_PILL;
@@ -225,22 +226,72 @@ export function updateSiteMarkerSelection(markers: Map<string, SiteMarker>, sele
   });
 }
 
-/** Back-face culling: hide markers that have rotated past the lunar horizon, and scale badges based on distance. */
+export interface MarkerDisplayOptions {
+  showMarkers?: boolean;
+  showLabels?: boolean;
+}
+
+/**
+ * Scale-aware culling and sizing:
+ * - Hides limb/backface markers past horizon curve.
+ * - At local inspection scale (close camera distance), hides non-selected candidates completely
+ *   so the local crater rim and surface relief are 100% unobstructed.
+ * - Dynamically scales marker beacon, ring, and stalk to camera distance so they never balloon into giant discs.
+ */
 export function applyMarkerHorizonOcclusion(
   markers: Map<string, SiteMarker>,
   cameraPosition: THREE.Vector3,
+  targetPosition: THREE.Vector3,
+  selectedSiteId: string,
   scratch: THREE.Vector3,
+  options?: MarkerDisplayOptions,
 ): void {
-  markers.forEach(({ container, surfacePos, normal, badge }) => {
+  const showMarkers = options?.showMarkers ?? true;
+  const showLabels = options?.showLabels ?? true;
+
+  if (!showMarkers) {
+    markers.forEach(({ container }) => {
+      container.visible = false;
+    });
+    return;
+  }
+
+  const distToTarget = cameraPosition.distanceTo(targetPosition);
+  const isLocalInspection = distToTarget < 0.65;
+
+  markers.forEach(({ container, ring, beacon, stalk, surfacePos, normal, badge, site }) => {
+    const isSelected = site.id === selectedSiteId;
+
+    // In local inspection mode, hide all distant unselected markers to prevent visual clutter
+    if (isLocalInspection && !isSelected) {
+      container.visible = false;
+      return;
+    }
+
     scratch.copy(cameraPosition).sub(surfacePos);
     const dist = scratch.length();
     scratch.normalize();
-    container.visible = normal.dot(scratch) >= HORIZON_OCCLUSION_DOT;
+    const isFrontFacing = normal.dot(scratch) >= HORIZON_OCCLUSION_DOT;
 
-    // Scale billboard badge down at close inspection distance so it doesn't obstruct crater relief
-    if (badge.visible) {
-      const scaleFactor = Math.min(1.0, Math.max(0.40, dist / 1.6));
-      badge.scale.set(0.18 * scaleFactor, 0.045 * scaleFactor, 1);
+    container.visible = isFrontFacing;
+    if (!isFrontFacing) return;
+
+    // Scale marker geometry proportionally to camera distance to maintain delicate, sharp pin appearance
+    const scaleFactor = isLocalInspection
+      ? Math.min(1.0, Math.max(0.18, dist / 1.5))
+      : Math.min(1.15, Math.max(0.35, dist / 3.8));
+
+    const finalScale = isSelected ? scaleFactor * 1.15 : scaleFactor * 0.75;
+    ring.scale.setScalar(finalScale);
+    beacon.scale.setScalar(finalScale);
+    stalk.scale.set(finalScale, finalScale, finalScale);
+
+    // Badge visibility: only shown if labels are enabled and not excessively zoomed in
+    const shouldShowBadge = showLabels && isSelected && (!isLocalInspection || distToTarget >= 0.28);
+    badge.visible = shouldShowBadge;
+    if (shouldShowBadge) {
+      const badgeScale = Math.min(1.0, Math.max(0.35, dist / 2.0));
+      badge.scale.set(0.14 * badgeScale, 0.035 * badgeScale, 1);
     }
   });
 }
