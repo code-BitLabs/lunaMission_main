@@ -41,6 +41,8 @@ export interface GlobeSceneHandle {
   transitioner: CameraTransitioner;
   setSelectedSiteId?: (id: string) => void;
   setDisplayOptions?: (opts: { showMarkers?: boolean; showLabels?: boolean; showTerrain?: boolean }) => void;
+  setFlyover?: (active?: boolean) => void;
+  isFlyoverActive?: () => boolean;
   getDiagnostics?: () => GlobeDiagnosticsMetrics;
   dispose: () => void;
 }
@@ -55,6 +57,7 @@ export interface GlobeSceneBuildInput {
   /** Hovering must not leave a badge lit on a site the workspace has since selected. */
   isSiteSelected: (siteId: string) => boolean;
   onPick: (site: CandidateSite) => void;
+  onFlyoverInterrupted?: () => void;
 }
 
 /**
@@ -119,10 +122,15 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
   const transitioner = createCameraTransitioner();
   let currentSelectedSiteId = input.initialSelectedSiteId;
   let displayOptions = { showMarkers: true, showLabels: true, showTerrain: true };
+  let isFlyoverEnabled = false;
 
-  // User manual drag/orbit immediately interrupts in-flight camera transitions
+  // User manual drag/orbit immediately interrupts in-flight camera transitions and flyover
   const handleControlsStart = () => {
     transitioner.cancel();
+    if (isFlyoverEnabled) {
+      isFlyoverEnabled = false;
+      input.onFlyoverInterrupted?.();
+    }
   };
   globe.controls.addEventListener('start', handleControlsStart);
 
@@ -142,6 +150,8 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
     pixelRatio: globe.renderer.getPixelRatio(),
     isSoftwareGl,
   };
+
+  const flyoverAxis = new THREE.Vector3();
 
   const animate = () => {
     animationId = requestAnimationFrame(animate);
@@ -176,19 +186,30 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
       }
     }
 
+    // Step scripted camera move
     transitioner.step(globe.camera, globe.controls);
 
-    // Anti-penetration collision guard: prevent camera from penetrating inside Moon sphere (radius 1.45)
-    const distToCenter = globe.camera.position.length();
-    const MIN_SAFE_ALTITUDE = 0.015;
-    if (distToCenter < MOON_SCENE_RADIUS + MIN_SAFE_ALTITUDE) {
-      globe.camera.position.setLength(MOON_SCENE_RADIUS + MIN_SAFE_ALTITUDE);
+    // Guided reconnaissance flyover: smooth circular orbit around the target terrain
+    if (isFlyoverEnabled && !transitioner.isTransitioning()) {
+      flyoverAxis.copy(globe.camera.up).normalize();
+      if (flyoverAxis.lengthSq() < 0.1) flyoverAxis.set(0, 1, 0);
+
+      const offset = globe.camera.position.clone().sub(globe.controls.target);
+      offset.applyAxisAngle(flyoverAxis, 0.0035);
+      globe.camera.position.copy(globe.controls.target).add(offset);
+      globe.controls.update();
     }
 
-    // Dynamic scale-aware near clipping plane adjustment
+    // Anti-penetration collision guard: prevent camera from entering below Moon surface datum
+    const distToCenter = globe.camera.position.length();
+    if (distToCenter < MOON_SCENE_RADIUS + 0.006) {
+      globe.camera.position.setLength(MOON_SCENE_RADIUS + 0.006);
+    }
+
+    // Dynamic scale-aware near clipping plane adjustment (down to 0.002 for close inspection)
     const distToTarget = globe.camera.position.distanceTo(globe.controls.target);
-    const targetNear = distToTarget < 0.20 ? 0.002 : distToTarget < 0.8 ? 0.01 : 0.05;
-    if (Math.abs(globe.camera.near - targetNear) > 0.001) {
+    const targetNear = distToTarget < 0.25 ? 0.002 : distToTarget < 0.8 ? 0.01 : 0.05;
+    if (Math.abs(globe.camera.near - targetNear) > 0.0005) {
       globe.camera.near = targetNear;
       globe.camera.updateProjectionMatrix();
     }
@@ -228,7 +249,7 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
     transitioner,
     setSelectedSiteId: (id: string) => {
       currentSelectedSiteId = id;
-      polarTerrain.updateLandingReticle(id);
+      polarTerrain.updateSelectedSite(id);
     },
     setDisplayOptions: (opts: { showMarkers?: boolean; showLabels?: boolean; showTerrain?: boolean }) => {
       displayOptions = { ...displayOptions, ...opts };
@@ -236,6 +257,10 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
         surface.mesh.visible = opts.showTerrain;
       }
     },
+    setFlyover: (active?: boolean) => {
+      isFlyoverEnabled = active !== undefined ? active : !isFlyoverEnabled;
+    },
+    isFlyoverActive: () => isFlyoverEnabled,
     getDiagnostics: () => cachedMetrics,
     dispose: () => {
       cancelAnimationFrame(animationId);

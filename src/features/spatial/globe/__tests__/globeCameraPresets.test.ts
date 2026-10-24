@@ -108,3 +108,21 @@ test('Camera transitioner: step smoothly moves camera and reaches target pose', 
   assert.ok(Math.abs(camera.position.y - (-NADIR_CAMERA_DISTANCE)) < 0.01);
   assert.ok(Math.abs(camera.up.z - 1.0) < 0.01);
 });
+
+test('Camera presets: overhead preset frames candidate nadir with north up', () => {
+  const pose = cameraPoseForPreset('overhead', testSite);
+  assert.ok(pose.lookTarget.length() > 1.4 && pose.lookTarget.length() < 1.5, 'Target is on Moon surface');
+  const dist = pose.camPos.distanceTo(pose.lookTarget);
+  assert.ok(dist >= 0.12 && dist <= 0.16, `Overhead camera distance should be ~0.14, was ${dist}`);
+  // Up vector is local North
+  assert.ok(Math.abs(pose.upVector.length() - 1.0) < 1e-4);
+});
+
+test('Camera presets: horizon preset frames eye-level perspective toward terrain horizon', () => {
+  const pose = cameraPoseForPreset('horizon', testSite);
+  assert.ok(pose.camPos.length() > 1.45, 'Camera sits safely above Moon surface');
+  const dist = pose.camPos.distanceTo(pose.lookTarget);
+  assert.ok(dist < 0.12, `Horizon view look target distance should be compact, was ${dist}`);
+  assert.ok(Math.abs(pose.upVector.length() - 1.0) < 1e-4);
+});
+

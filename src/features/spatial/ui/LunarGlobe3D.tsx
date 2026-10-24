@@ -43,12 +43,15 @@ export interface LunarGlobe3DProps {
   /** The globe is embedded in the workspace, which supplies its own toolbar and ribbon. */
   hideHeader?: boolean;
   hideRibbon?: boolean;
+  hideLegend?: boolean;
   /** Owned by the workspace so the toolbar and the globe's own buttons agree. */
   cameraPreset: CameraPreset;
   onCameraPresetChange: (preset: CameraPreset) => void;
   /** Optional diagnostics toggle for development and standalone test routes */
   showDiagnostics?: boolean;
   epochIsoUtc?: string;
+  isFlyoverActive?: boolean;
+  onFlyoverChange?: (active: boolean) => void;
 }
 
 /**
@@ -75,11 +78,14 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
     onToggleVectors,
     hideHeader = false,
     hideRibbon = false,
+    hideLegend = false,
     cameraPreset,
     onCameraPresetChange,
     onSelectSite,
     showDiagnostics = false,
     epochIsoUtc,
+    isFlyoverActive,
+    onFlyoverChange,
   } = props;
 
   // Unknown elevation must never be presented as "0°" or as a clear line of sight.
@@ -105,6 +111,8 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
     showLabels,
     cameraPreset,
     onCameraPresetChange,
+    isFlyoverActive,
+    onFlyoverChange,
   });
 
   if (status.kind === 'unsupported') return <GlobeUnavailablePanel />;
@@ -132,7 +140,7 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
 
       {hoveredSite && <GlobeHoverCard site={hoveredSite} />}
 
-      <GlobeLegend earthElevationDisplay={earthElevationDisplay} isCompact={hideRibbon} />
+      {!hideLegend && <GlobeLegend earthElevationDisplay={earthElevationDisplay} isCompact={hideRibbon} />}
 
       <GlobeDiagnosticsOverlay
         getDiagnostics={getDiagnostics}

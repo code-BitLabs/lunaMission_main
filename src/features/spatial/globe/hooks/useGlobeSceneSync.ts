@@ -87,8 +87,14 @@ export function useGlobeSceneSync(input: GlobeSceneSyncInput): void {
     selectedSiteIdRef.current = selectedSite.id;
     applySelectedSite(handle, selectedSite.id);
 
-    // While in 'site' or 'inspection' preset, smoothly animate camera to the newly selected candidate
-    if (cameraPreset === 'site' || cameraPreset === 'inspection') {
+    // While in any local inspection preset, smoothly animate camera to the newly selected candidate
+    const isLocal =
+      cameraPreset === 'site' ||
+      cameraPreset === 'inspection' ||
+      cameraPreset === 'oblique' ||
+      cameraPreset === 'overhead' ||
+      cameraPreset === 'horizon';
+    if (isLocal) {
       applyCameraPreset(cameraPreset, selectedSite);
     }
   }, [handleRef, selectedSiteIdRef, selectedSite, cameraPreset, applyCameraPreset]);

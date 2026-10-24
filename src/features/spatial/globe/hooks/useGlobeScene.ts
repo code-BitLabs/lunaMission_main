@@ -33,6 +33,8 @@ export interface UseGlobeSceneInput {
   showLabels?: boolean;
   cameraPreset: CameraPreset;
   onCameraPresetChange: (preset: CameraPreset) => void;
+  isFlyoverActive?: boolean;
+  onFlyoverChange?: (active: boolean) => void;
 }
 
 export interface UseGlobeSceneResult {
@@ -68,6 +70,8 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
     showLabels,
     cameraPreset,
     onCameraPresetChange,
+    isFlyoverActive,
+    onFlyoverChange,
   } = input;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +79,8 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
   const selectedSiteIdRef = useRef(selectedSite.id);
   const pickSiteRef = useRef<(site: CandidateSite) => void>(() => {});
   const handledPresetRef = useRef<CameraPreset>(cameraPreset);
+  const onFlyoverChangeRef = useRef(onFlyoverChange);
+  onFlyoverChangeRef.current = onFlyoverChange;
 
   const [status, setStatus] = useState<GlobeStatus>({ kind: 'loading' });
   const [hoveredSite, setHoveredSite] = useState<CandidateSite | null>(null);
@@ -97,6 +103,12 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
     [onCameraPresetChange, moveCameraToPreset],
   );
 
+  useEffect(() => {
+    if (isFlyoverActive !== undefined) {
+      handleRef.current?.setFlyover?.(isFlyoverActive);
+    }
+  }, [isFlyoverActive]);
+
   // Mount-only by design: rebuilding WebGL on a parent re-render is the cost this hook exists to avoid.
   useEffect(() => {
     const container = containerRef.current;
@@ -114,6 +126,7 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
       onHoverChange: setHoveredSite,
       isSiteSelected: (siteId) => siteId === selectedSiteIdRef.current,
       onPick: (site) => pickSiteRef.current(site),
+      onFlyoverInterrupted: () => onFlyoverChangeRef.current?.(false),
     });
     if (!handle) {
       setStatus({ kind: 'unsupported' });
@@ -130,7 +143,13 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
   useEffect(() => {
     pickSiteRef.current = (site) => {
       onSelectSite(site);
-      if (cameraPreset === 'site' || cameraPreset === 'inspection') {
+      const isLocal =
+        cameraPreset === 'site' ||
+        cameraPreset === 'inspection' ||
+        cameraPreset === 'oblique' ||
+        cameraPreset === 'overhead' ||
+        cameraPreset === 'horizon';
+      if (isLocal) {
         applyCameraPreset(cameraPreset, site);
       }
     };

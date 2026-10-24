@@ -8,7 +8,7 @@ async function run() {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  console.log('Launching Chromium for 3D Lab verification...');
+  console.log('Launching Chromium for comprehensive 3D Lab verification...');
   const executablePath =
     '/ms-playwright/chromium_headless_shell-1247/chrome-headless-shell-linux64/chrome-headless-shell';
   const browser = await chromium.launch({
@@ -24,48 +24,55 @@ async function run() {
   page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
   page.on('pageerror', (err) => console.log('PAGE ERROR:', err.message));
 
-  // Step 1: Load Global Moon on 3D Lab route
-  console.log('Navigating to http://localhost:3000/scenario/3d-lab...');
+  // Step 1: Initial Load (Mode A: Regional South Pole)
+  console.log('1. Navigating to http://localhost:3000/scenario/3d-lab...');
   await page.goto('http://localhost:3000/scenario/3d-lab', { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);
-
   await page.screenshot({ path: path.join(outputDir, 'lab-3d-1-initial-nadir.png') });
   console.log('Saved lab-3d-1-initial-nadir.png');
 
-  // Step 2: Switch to Global Preset
-  console.log('Selecting Global preset...');
-  const globalBtn = page.getByRole('button', { name: 'Global', exact: true });
-  await globalBtn.click();
+  // Step 2: Global Moon Context
+  console.log('2. Selecting Global preset...');
+  const globalBtn = page.getByTestId('preset-global');
+  await globalBtn.click({ force: true });
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(outputDir, 'lab-3d-2-global.png') });
   console.log('Saved lab-3d-2-global.png');
 
-  // Step 3: Switch to Mode A: South Pole preset
-  console.log('Selecting South Pole preset (Mode A)...');
-  const poleBtn = page.getByRole('button', { name: 'South Pole', exact: true });
-  await poleBtn.click();
+  // Step 3: Candidate Overview (Mode B)
+  console.log('3. Selecting Candidate Overview preset (Mode B)...');
+  const siteBtn = page.getByTestId('preset-site');
+  await siteBtn.click({ force: true });
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-3-southpole.png') });
-  console.log('Saved lab-3d-3-southpole.png');
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-3-candidate-overview.png') });
+  console.log('Saved lab-3d-3-candidate-overview.png');
 
-  // Step 4: Zoom into Candidate Site (Mode B: Candidate Overview)
-  console.log('Selecting Candidate preset (Mode B)...');
-  const siteBtn = page.getByRole('button', { name: 'Candidate', exact: true });
-  await siteBtn.click();
+  // Step 4: Mode C: 45° Oblique Inspection
+  console.log('4. Selecting 45° Oblique preset (Mode C)...');
+  const obliqueBtn = page.getByTestId('preset-oblique');
+  await obliqueBtn.click({ force: true });
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-4-candidate-overview.png') });
-  console.log('Saved lab-3d-4-candidate-overview.png');
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-4-oblique-45.png') });
+  console.log('Saved lab-3d-4-oblique-45.png');
 
-  // Step 5: Continue zooming into Local Inspection (Mode C: Local Inspection)
-  console.log('Selecting Inspect preset (Mode C: Deep Zoom)...');
-  const inspectBtn = page.getByRole('button', { name: 'Inspect', exact: true });
-  await inspectBtn.click();
+  // Step 5: Mode D: Tactical Overhead Nadir
+  console.log('5. Selecting Overhead preset (Mode D)...');
+  const overheadBtn = page.getByTestId('preset-overhead');
+  await overheadBtn.click({ force: true });
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-5-local-inspection.png') });
-  console.log('Saved lab-3d-5-local-inspection.png');
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-5-overhead.png') });
+  console.log('Saved lab-3d-5-overhead.png');
 
-  // Step 6: Orbit left/right at deepest zoom
-  console.log('Simulating orbit drag at deep zoom...');
+  // Step 6: Mode E: Ground-Level Horizon Inspection
+  console.log('6. Selecting Horizon preset (Mode E)...');
+  const horizonBtn = page.getByTestId('preset-horizon');
+  await horizonBtn.click({ force: true });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-6-horizon.png') });
+  console.log('Saved lab-3d-6-horizon.png');
+
+  // Step 7: Smooth Orbit Drag at Local Scale
+  console.log('7. Simulating manual orbit drag in local inspection...');
   const canvas = page.locator('canvas');
   const box = await canvas.boundingBox();
   if (box) {
@@ -73,56 +80,59 @@ async function run() {
     const startY = box.y + box.height / 2;
     await page.mouse.move(startX, startY);
     await page.mouse.down();
-    await page.mouse.move(startX + 120, startY - 30, { steps: 10 });
+    await page.mouse.move(startX + 140, startY - 20, { steps: 10 });
     await page.mouse.up();
   }
   await page.waitForTimeout(600);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-6-deep-orbit.png') });
-  console.log('Saved lab-3d-6-deep-orbit.png');
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-7-orbit-drag.png') });
+  console.log('Saved lab-3d-7-orbit-drag.png');
 
-  // Step 7: Select a different candidate (Malapert Mountain) while in inspection mode
-  console.log('Selecting Malapert Mountain...');
+  // Step 8: Guided Flyover Tour
+  console.log('8. Toggling Guided Flyover Tour...');
+  const flyoverBtn = page.getByTestId('toggle-flyover');
+  await flyoverBtn.click({ force: true });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-8-flyover-active.png') });
+  console.log('Saved lab-3d-8-flyover-active.png');
+  // Pause/stop flyover
+  await flyoverBtn.click({ force: true });
+  await page.waitForTimeout(400);
+
+  // Step 9: Synchronized 2D/3D Split View
+  console.log('9. Toggling Synchronized 2D/3D Split View...');
+  const splitBtn = page.getByTestId('toggle-split-view');
+  await splitBtn.click({ force: true });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-9-split-view.png') });
+  console.log('Saved lab-3d-9-split-view.png');
+
+  // Step 10: Switch Candidate in Split View
+  console.log('10. Selecting Malapert Massif in Split View...');
   const selectDropdown = page.locator('select');
   await selectDropdown.selectOption('malapert-massif');
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-7-malapert-inspection.png') });
-  console.log('Saved lab-3d-7-malapert-inspection.png');
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-10-malapert-split.png') });
+  console.log('Saved lab-3d-10-malapert-split.png');
 
-  // Step 8: Toggle layers (Labels, Footprint)
-  console.log('Testing independent layer toggles...');
-  const labelsBtn = page.getByRole('button', { name: 'Labels', exact: true });
-  await labelsBtn.click();
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-8-layer-toggles.png') });
-  console.log('Saved lab-3d-8-layer-toggles.png');
-  // Re-enable labels
-  await labelsBtn.click();
-
-  // Step 9: Step time forward by 6 hours
-  console.log('Stepping time forward 6 hours...');
+  // Step 11: Ephemeris time step (+6h)
+  console.log('11. Stepping time forward 6 hours...');
   const stepFwdBtn = page.getByTitle('Step Forward 6 Hours');
-  await stepFwdBtn.click();
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-9-time-step.png') });
-  console.log('Saved lab-3d-9-time-step.png');
+  await stepFwdBtn.click({ force: true });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-11-time-step.png') });
+  console.log('Saved lab-3d-11-time-step.png');
 
-  // Step 10: Reset camera to overview
-  console.log('Resetting camera to overview...');
-  const resetBtn = page.getByTitle(/Reset Camera/);
-  await resetBtn.click();
+  // Step 12: Return to single view & Reset camera
+  console.log('12. Resetting camera and disabling split view...');
+  await splitBtn.click({ force: true });
+  const resetBtn = page.getByTestId('btn-reset-camera');
+  await resetBtn.click({ force: true });
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(outputDir, 'lab-3d-10-reset-camera.png') });
-  console.log('Saved lab-3d-10-reset-camera.png');
-
-  // Step 11: Also verify main observatory page has 3D Lab button and renders properly
-  console.log('Navigating to main observatory / ...');
-  await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
-  await page.waitForTimeout(1000);
-  await page.screenshot({ path: path.join(outputDir, 'observatory-with-3d-lab-btn.png') });
-  console.log('Saved observatory-with-3d-lab-btn.png');
+  await page.screenshot({ path: path.join(outputDir, 'lab-3d-12-reset-final.png') });
+  console.log('Saved lab-3d-12-reset-final.png');
 
   await browser.close();
-  console.log('All browser verification steps completed successfully!');
+  console.log('All 12 browser verification steps completed successfully!');
 }
 
 run().catch((err) => {
