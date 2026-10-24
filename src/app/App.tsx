@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from '@/app/header/Header';
 import { NavTab } from '@/app/header/config/navTabs';
 import { SpatialWorkspace } from '@/features/spatial/ui/SpatialWorkspace';
@@ -7,15 +7,36 @@ import { ComparisonMatrix } from '@/features/comparison/ui/ComparisonMatrix';
 import { MethodAndDataView } from '@/features/methodology/ui/MethodAndDataView';
 import { CandidateSite } from '@/domain/sites/candidateSite';
 import { useScenarioCommands, useScenarioModel } from '@/app/scenario/context/scenarioContext';
+import { Scenario3DLab } from '@/features/spatial/lab/Scenario3DLab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('explore');
+  const [currentPath, setCurrentPath] = useState(
+    typeof window !== 'undefined' ? window.location.pathname + window.location.hash : '/'
+  );
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname + window.location.hash);
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
   const { epochIsoUtc } = useScenarioModel();
   const { selectSite } = useScenarioCommands();
 
   function handleSelectSiteForExplore(site: CandidateSite) {
     selectSite(site.id);
     setActiveTab('explore');
+  }
+
+  if (currentPath.includes('/scenario/3d-lab')) {
+    return <Scenario3DLab />;
   }
 
   return (

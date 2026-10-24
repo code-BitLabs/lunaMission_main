@@ -11,6 +11,7 @@ import {
   Eye,
   Globe as GlobeIcon,
   Map as MapIcon,
+  ZoomIn,
   type LucideIcon,
 } from 'lucide-react';
 import { CameraPreset, SpatialLayer } from '@/features/spatial/model/spatialPreferences';
@@ -85,6 +86,13 @@ export const CAMERA_PRESETS: CameraPresetOption[] = [
     title: 'Focus camera on selected candidate site',
     Icon: Crosshair,
     iconClassName: 'w-3 h-3',
+  },
+  {
+    preset: 'inspection',
+    label: 'Inspect',
+    title: 'Local Site Inspection: Deep zoom grazing view of crater relief and lighting',
+    Icon: ZoomIn,
+    iconClassName: 'w-3 h-3 text-[var(--lm-color-sun)]',
   },
 ];
 

@@ -16,8 +16,8 @@ const CAMERA_FAR = 100;
 const INITIAL_CAMERA_POSITION: readonly [number, number, number] = [0, -4.8, 0.0001];
 const INITIAL_CAMERA_UP: readonly [number, number, number] = [0, 0, 1];
 const CONTROL_DAMPING_FACTOR = 0.05;
-const CONTROL_MIN_DISTANCE = 2.1;
-const CONTROL_MAX_DISTANCE = 9.5;
+export const CONTROL_MIN_DISTANCE = 0.015;
+export const CONTROL_MAX_DISTANCE = 14.0;
 
 const SUN_LIGHT_COLOR = 0xfff8e7;
 const SUN_LIGHT_INTENSITY = 2.5;
@@ -59,6 +59,23 @@ export interface GlobeScene {
   earthLight: THREE.DirectionalLight;
 }
 
+/** Detects software WebGL implementations (SwiftShader, llvmpipe) to tune performance. */
+export const isSoftwareGl = (() => {
+  if (typeof document === 'undefined') return true;
+  try {
+    const probe = document.createElement('canvas');
+    const gl = probe.getContext('webgl2') || probe.getContext('webgl');
+    if (!gl) return true;
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const param = ext ? ext.UNMASKED_RENDERER_WEBGL : (gl as any).RENDERER;
+    const gpu = String((gl as any).getParameter(param));
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
+  } catch {
+    return true;
+  }
+})();
+
 /** False when the host cannot give the globe a WebGL context at all. */
 export function isWebGlAvailable(): boolean {
   try {
@@ -85,22 +102,26 @@ export function createGlobeScene(width: number, height: number): GlobeScene {
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({
-    antialias: true,
+    antialias: !isSoftwareGl,
     alpha: false,
     powerPreference: 'high-performance',
   });
   renderer.setSize(width, height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Cap at 1.0 on software WebGL, or 1.75 on GPU to eliminate 4K / retina fullscreen fillrate lag
+  renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio, 1.75));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !isSoftwareGl;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
+  controls.enableDamping = !isSoftwareGl;
   controls.dampingFactor = CONTROL_DAMPING_FACTOR;
   controls.minDistance = CONTROL_MIN_DISTANCE;
   controls.maxDistance = CONTROL_MAX_DISTANCE;
+  // Guard against spherical coordinate singularities at the exact poles
+  controls.minPolarAngle = 0.015;
+  controls.maxPolarAngle = Math.PI - 0.015;
   controls.target.set(0, 0, 0);
 
   const sunLight = new THREE.DirectionalLight(SUN_LIGHT_COLOR, SUN_LIGHT_INTENSITY);

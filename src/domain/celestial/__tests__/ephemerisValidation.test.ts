@@ -94,29 +94,35 @@ test('Site Conditions: Calculation modes strictly preserve the distinction betwe
   const geomResult = calculateSiteConditions(site, date, 'geometry-only');
   const terrainResult = calculateSiteConditions(site, date, 'terrain-aware');
 
+  // Helper to safely extract available values in test
+  const val = <T>(res: any): T => {
+    assert.equal(res.kind, 'available');
+    return res.value;
+  };
+
   // Spherical geometry-only model MUST set local terrain horizon to exactly 0.00°
   assert.equal(geomResult.provenance.calculationMode, 'geometry-only');
-  assert.equal(geomResult.localTerrainElevationAtSunAzimuthDeg.value, 0);
-  assert.equal(geomResult.localTerrainElevationAtEarthAzimuthDeg.value, 0);
+  assert.equal(val(geomResult.localTerrainElevationAtSunAzimuthDeg), 0);
+  assert.equal(val(geomResult.localTerrainElevationAtEarthAzimuthDeg), 0);
 
   // Terrain-aware model incorporates LOLA DEM horizon mask and dip angle
   assert.equal(terrainResult.provenance.calculationMode, 'terrain-aware');
   assert.notEqual(
-    terrainResult.localTerrainElevationAtSunAzimuthDeg.value,
+    val(terrainResult.localTerrainElevationAtSunAzimuthDeg),
     0,
     'Expected non-zero terrain horizon elevation incorporating dip angle and relief for Shackleton rim'
   );
   assert.notEqual(
-    terrainResult.localTerrainElevationAtEarthAzimuthDeg.value,
+    val(terrainResult.localTerrainElevationAtEarthAzimuthDeg),
     0,
     'Expected non-zero terrain horizon elevation incorporating dip angle and relief for Shackleton rim'
   );
 
   // Topocentric angles of bodies relative to mean sphere must match regardless of calculation mode
-  assert.equal(geomResult.sunElevationDeg.value, terrainResult.sunElevationDeg.value);
-  assert.equal(geomResult.sunAzimuthDeg.value, terrainResult.sunAzimuthDeg.value);
-  assert.equal(geomResult.earthElevationDeg.value, terrainResult.earthElevationDeg.value);
-  assert.equal(geomResult.earthAzimuthDeg.value, terrainResult.earthAzimuthDeg.value);
+  assert.equal(val(geomResult.sunElevationDeg), val(terrainResult.sunElevationDeg));
+  assert.equal(val(geomResult.sunAzimuthDeg), val(terrainResult.sunAzimuthDeg));
+  assert.equal(val(geomResult.earthElevationDeg), val(terrainResult.earthElevationDeg));
+  assert.equal(val(geomResult.earthAzimuthDeg), val(terrainResult.earthAzimuthDeg));
 });
 
 test('Speed of Light: Theoretical vacuum one-way light time is consistent with instantaneous range', () => {

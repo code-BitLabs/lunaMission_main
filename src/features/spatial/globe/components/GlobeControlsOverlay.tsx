@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, Eye, Crosshair } from 'lucide-react';
+import { Compass, Eye, Crosshair, ZoomIn } from 'lucide-react';
 import { CameraPreset } from '@/features/spatial/model/spatialPreferences';
 
 export interface GlobeControlsOverlayProps {
@@ -99,6 +99,16 @@ export function GlobeControlsOverlay({
           >
             <Crosshair className="w-3.5 h-3.5" />
             <span>Site Focus</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectPreset('inspection')}
+            title="Local Site Inspection: Deep zoom grazing view of crater relief and lighting"
+            className={presetButtonClass(ICON_PRESET_BUTTON_BASE, cameraPreset === 'inspection')}
+          >
+            <ZoomIn className="w-3.5 h-3.5 text-[var(--lm-color-sun)]" />
+            <span>Inspect</span>
           </button>
         </div>
 

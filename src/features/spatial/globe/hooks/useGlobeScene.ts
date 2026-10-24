@@ -6,7 +6,11 @@ import {
   SelenographicLongitudeDeg,
 } from '@/domain/coordinates/frames';
 import { GlobeStatus } from '@/features/spatial/globe/scene/globeStatus';
-import { GlobeSceneHandle, buildGlobeScene } from '@/features/spatial/globe/scene/globeSceneBuilder';
+import {
+  GlobeSceneHandle,
+  GlobeDiagnosticsMetrics,
+  buildGlobeScene,
+} from '@/features/spatial/globe/scene/globeSceneBuilder';
 import { useGlobeSceneSync } from '@/features/spatial/globe/hooks/useGlobeSceneSync';
 
 /** Color mosaic and DEM relief both settle before the loading overlay lifts. */
@@ -33,6 +37,7 @@ export interface UseGlobeSceneResult {
   status: GlobeStatus;
   hoveredSite: CandidateSite | null;
   applyCameraPreset: (preset: CameraPreset, site: CandidateSite) => void;
+  getDiagnostics: () => GlobeDiagnosticsMetrics | null;
 }
 
 /**
@@ -119,7 +124,9 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
   useEffect(() => {
     pickSiteRef.current = (site) => {
       onSelectSite(site);
-      if (cameraPreset === 'site') applyCameraPreset('site', site);
+      if (cameraPreset === 'site' || cameraPreset === 'inspection') {
+        applyCameraPreset(cameraPreset, site);
+      }
     };
   }, [onSelectSite, cameraPreset, applyCameraPreset]);
 
@@ -145,5 +152,9 @@ export function useGlobeScene(input: UseGlobeSceneInput): UseGlobeSceneResult {
     applyCameraPreset,
   });
 
-  return { containerRef, status, hoveredSite, applyCameraPreset };
+  const getDiagnostics = useCallback(() => {
+    return handleRef.current?.getDiagnostics?.() ?? null;
+  }, []);
+
+  return { containerRef, status, hoveredSite, applyCameraPreset, getDiagnostics };
 }

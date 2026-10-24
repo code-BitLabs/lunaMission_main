@@ -225,14 +225,22 @@ export function updateSiteMarkerSelection(markers: Map<string, SiteMarker>, sele
   });
 }
 
-/** Back-face culling: hide markers that have rotated past the lunar horizon. */
+/** Back-face culling: hide markers that have rotated past the lunar horizon, and scale badges based on distance. */
 export function applyMarkerHorizonOcclusion(
   markers: Map<string, SiteMarker>,
   cameraPosition: THREE.Vector3,
   scratch: THREE.Vector3,
 ): void {
-  markers.forEach(({ container, surfacePos, normal }) => {
-    scratch.copy(cameraPosition).sub(surfacePos).normalize();
+  markers.forEach(({ container, surfacePos, normal, badge }) => {
+    scratch.copy(cameraPosition).sub(surfacePos);
+    const dist = scratch.length();
+    scratch.normalize();
     container.visible = normal.dot(scratch) >= HORIZON_OCCLUSION_DOT;
+
+    // Scale billboard badge down at close inspection distance so it doesn't obstruct crater relief
+    if (badge.visible) {
+      const scaleFactor = Math.min(1.0, Math.max(0.40, dist / 1.6));
+      badge.scale.set(0.18 * scaleFactor, 0.045 * scaleFactor, 1);
+    }
   });
 }

@@ -219,9 +219,16 @@ export function clearCelestialVectors(group: THREE.Group): void {
  * Renders the Sun (luminous light source + corona) and Earth (realistic planetary disc + atmosphere)
  * strictly synchronized with canonical ephemeris coordinates and observer sightlines.
  */
+/**
+ * Renders the Sun (luminous light source + corona) and Earth (realistic planetary disc + atmosphere)
+ * strictly synchronized with canonical ephemeris coordinates and observer sightlines.
+ * Reuses existing scene objects and textures to eliminate memory allocations and GPU thrashing.
+ */
 export function renderCelestialVectors(group: THREE.Group, input: CelestialVectorInput): void {
-  clearCelestialVectors(group);
-  if (!input.showVectors) return;
+  if (!input.showVectors) {
+    clearCelestialVectors(group);
+    return;
+  }
 
   const origin = latLonToVector3(
     input.site.coordinates.latitudeDeg,
@@ -229,78 +236,11 @@ export function renderCelestialVectors(group: THREE.Group, input: CelestialVecto
     MOON_SCENE_RADIUS * VECTOR_ORIGIN_LIFT,
   );
 
-  // ----------------------------------------------------
-  // 1. SUN: Luminous celestial body & directional ray
-  // ----------------------------------------------------
   const sunOrbPos = latLonToVector3(input.subSolarLatDeg, input.subSolarLonDeg, SUN_SPHERE_DISTANCE);
-
-  // Luminous Sun sphere
-  const sunMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(SUN_SPHERE_RADIUS, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffe082 })
-  );
-  sunMesh.position.copy(sunOrbPos);
-  group.add(sunMesh);
-
-  // Corona glow sprite
-  const coronaSprite = createSunCoronaSprite();
-  coronaSprite.position.copy(sunOrbPos);
-  group.add(coronaSprite);
-
-  // Sun Label
-  const sunLabel = createCelestialLabel('☀ SUN', '#f59e0b');
-  sunLabel.position.copy(sunOrbPos.clone().add(new THREE.Vector3(0, 0.32, 0)));
-  group.add(sunLabel);
-
-  // Sun Direction Ray (dashed gold ray pointing from Sun toward Moon)
-  const sunRay = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([sunOrbPos, origin]),
-    new THREE.LineDashedMaterial({
-      color: SUN_VECTOR_COLOR,
-      dashSize: 0.16,
-      gapSize: 0.08,
-      transparent: true,
-      opacity: 0.65,
-    })
-  );
-  sunRay.computeLineDistances();
-  group.add(sunRay);
-
-  // ----------------------------------------------------
-  // 2. EARTH: Recognizable planetary sphere + atmosphere
-  // ----------------------------------------------------
   const earthOrbPos = latLonToVector3(input.subEarthLatDeg, input.subEarthLonDeg, EARTH_SPHERE_DISTANCE);
-  const earthTexture = createEarthCanvasTexture();
 
-  // Planetary Earth sphere
-  const earthMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(EARTH_SPHERE_RADIUS, 36, 36),
-    new THREE.MeshStandardMaterial({
-      map: earthTexture,
-      roughness: 0.65,
-      metalness: 0.05,
-    })
-  );
-  earthMesh.position.copy(earthOrbPos);
-  // Orient Earth texture so equator aligns horizontally
-  earthMesh.rotation.y = -Math.PI / 2;
-  group.add(earthMesh);
-
-  // Soft atmospheric haze (smooth translucent outer shell, NO WIREFRAME)
-  const atmosphereMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(EARTH_ATMOSPHERE_RADIUS, 32, 32),
-    new THREE.MeshBasicMaterial({
-      color: 0x60a5fa,
-      transparent: true,
-      opacity: EARTH_ATMOSPHERE_OPACITY,
-    })
-  );
-  atmosphereMesh.position.copy(earthOrbPos);
-  group.add(atmosphereMesh);
-
-  // Line of sight: Above horizon is active blue; confirmed below horizon is amber warning; unknown is neutral slate
   const isElevationKnown = input.earthElevationDeg !== null;
-  const hasLineOfSight = isElevationKnown && input.earthElevationDeg > 0;
+  const hasLineOfSight = input.earthElevationDeg !== null && input.earthElevationDeg > 0;
 
   const earthStatusText = !isElevationKnown
     ? '⊕ EARTH [ELEVATION UNKNOWN]'
@@ -314,11 +254,6 @@ export function renderCelestialVectors(group: THREE.Group, input: CelestialVecto
       ? '#38bdf8'
       : '#f59e0b';
 
-  const earthLabel = createCelestialLabel(earthStatusText, earthLabelColor);
-  earthLabel.position.copy(earthOrbPos.clone().add(new THREE.Vector3(0, 0.28, 0)));
-  group.add(earthLabel);
-
-  // Direct-To-Earth geometric sightline ray
   const linkColor = !isElevationKnown
     ? UNKNOWN_LINK_COLOR
     : hasLineOfSight
@@ -328,6 +263,114 @@ export function renderCelestialVectors(group: THREE.Group, input: CelestialVecto
   const linkDash = hasLineOfSight ? LINK_OPEN_DASH : LINK_BLOCKED_DASH;
   const linkGap = hasLineOfSight ? LINK_OPEN_GAP : LINK_BLOCKED_GAP;
   const linkOpacity = !isElevationKnown ? 0.35 : hasLineOfSight ? LINK_OPEN_OPACITY : LINK_BLOCKED_OPACITY;
+
+  // If 8 vector objects are already allocated, perform zero-allocation in-place update:
+  if (group.children.length === 8) {
+    const sunMesh = group.children[0] as THREE.Mesh;
+    const coronaSprite = group.children[1] as THREE.Sprite;
+    const sunLabel = group.children[2] as THREE.Sprite;
+    const sunRay = group.children[3] as THREE.Line;
+    const earthMesh = group.children[4] as THREE.Mesh;
+    const atmosphereMesh = group.children[5] as THREE.Mesh;
+    const earthLabel = group.children[6] as THREE.Sprite;
+    const linkLine = group.children[7] as THREE.Line;
+
+    sunMesh.position.copy(sunOrbPos);
+    coronaSprite.position.copy(sunOrbPos);
+    sunLabel.position.copy(sunOrbPos.clone().add(new THREE.Vector3(0, 0.32, 0)));
+
+    sunRay.geometry.setFromPoints([sunOrbPos, origin]);
+    sunRay.computeLineDistances();
+
+    earthMesh.position.copy(earthOrbPos);
+    atmosphereMesh.position.copy(earthOrbPos);
+
+    // Update earth label if status text changed
+    if (earthLabel.userData.text !== earthStatusText) {
+      if (earthLabel.material.map) earthLabel.material.map.dispose();
+      earthLabel.material.dispose();
+      group.remove(earthLabel);
+      const newLabel = createCelestialLabel(earthStatusText, earthLabelColor);
+      newLabel.userData = { text: earthStatusText };
+      newLabel.position.copy(earthOrbPos.clone().add(new THREE.Vector3(0, 0.28, 0)));
+      // Insert back at index 6
+      group.children.splice(6, 0, newLabel);
+    } else {
+      earthLabel.position.copy(earthOrbPos.clone().add(new THREE.Vector3(0, 0.28, 0)));
+    }
+
+    const currentLinkLine = group.children[7] as THREE.Line;
+    currentLinkLine.geometry.setFromPoints([origin, earthOrbPos]);
+    const linkMat = currentLinkLine.material as THREE.LineDashedMaterial;
+    linkMat.color.setHex(linkColor);
+    linkMat.dashSize = linkDash;
+    linkMat.gapSize = linkGap;
+    linkMat.opacity = linkOpacity;
+    currentLinkLine.computeLineDistances();
+    return;
+  }
+
+  // Initial allocation of the 8 vector elements:
+  clearCelestialVectors(group);
+
+  // 1. SUN
+  const sunMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(SUN_SPHERE_RADIUS, 32, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffe082 })
+  );
+  sunMesh.position.copy(sunOrbPos);
+  group.add(sunMesh);
+
+  const coronaSprite = createSunCoronaSprite();
+  coronaSprite.position.copy(sunOrbPos);
+  group.add(coronaSprite);
+
+  const sunLabel = createCelestialLabel('☀ SUN', '#f59e0b');
+  sunLabel.position.copy(sunOrbPos.clone().add(new THREE.Vector3(0, 0.32, 0)));
+  group.add(sunLabel);
+
+  const sunRay = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([sunOrbPos, origin]),
+    new THREE.LineDashedMaterial({
+      color: SUN_VECTOR_COLOR,
+      dashSize: 0.16,
+      gapSize: 0.08,
+      transparent: true,
+      opacity: 0.65,
+    })
+  );
+  sunRay.computeLineDistances();
+  group.add(sunRay);
+
+  // 2. EARTH
+  const earthTexture = createEarthCanvasTexture();
+  const earthMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_SPHERE_RADIUS, 36, 36),
+    new THREE.MeshStandardMaterial({
+      map: earthTexture,
+      roughness: 0.65,
+      metalness: 0.05,
+    })
+  );
+  earthMesh.position.copy(earthOrbPos);
+  earthMesh.rotation.y = -Math.PI / 2;
+  group.add(earthMesh);
+
+  const atmosphereMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_ATMOSPHERE_RADIUS, 32, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0x60a5fa,
+      transparent: true,
+      opacity: EARTH_ATMOSPHERE_OPACITY,
+    })
+  );
+  atmosphereMesh.position.copy(earthOrbPos);
+  group.add(atmosphereMesh);
+
+  const earthLabel = createCelestialLabel(earthStatusText, earthLabelColor);
+  earthLabel.userData = { text: earthStatusText };
+  earthLabel.position.copy(earthOrbPos.clone().add(new THREE.Vector3(0, 0.28, 0)));
+  group.add(earthLabel);
 
   const linkLine = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([origin, earthOrbPos]),

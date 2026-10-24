@@ -36,6 +36,15 @@ export function HeaderStatusControls({ isDemoMode, onOpenProvenance, onOpenGuide
         </button>
       )}
 
+      <a
+        href="/scenario/3d-lab"
+        aria-label="Open 3D Lab Test Route"
+        className="flex items-center gap-1 px-2 py-1 text-xs font-mono rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-border)] bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-secondary)] hover:text-[var(--lm-color-selected-site)] hover:border-[var(--lm-color-selected-site)]/60 transition-colors"
+        title="Open Standalone 3D Scientific Lab"
+      >
+        <span className="text-[var(--lm-color-selected-site)]">🔬 3D Lab</span>
+      </a>
+
       <button
         type="button"
         onClick={onOpenGuide}

@@ -38,8 +38,16 @@ export function createMarkerPickingController(
   let downX = 0;
   let downY = 0;
 
+  let cachedRect: DOMRect | null = null;
+
+  function updateCachedRect(): DOMRect {
+    cachedRect = container.getBoundingClientRect();
+    return cachedRect;
+  }
+
   function siteUnderPointer(clientX: number, clientY: number): CandidateSite | null {
-    const rect = container.getBoundingClientRect();
+    const rect = cachedRect ?? updateCachedRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
     pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
 
@@ -58,6 +66,7 @@ export function createMarkerPickingController(
     isDown = true;
     downX = event.clientX;
     downY = event.clientY;
+    updateCachedRect();
   }
 
   function onPointerUp(event: PointerEvent) {
@@ -71,7 +80,19 @@ export function createMarkerPickingController(
     if (site) handlers.onPick(site);
   }
 
+  function onPointerCancel() {
+    isDown = false;
+  }
+
+  let lastHoverTime = 0;
+
   function onPointerMove(event: PointerEvent) {
+    // When dragging to orbit or pan, skip raycasting to keep 60fps silky smooth
+    if (isDown) return;
+    const now = Date.now();
+    if (now - lastHoverTime < 25) return;
+    lastHoverTime = now;
+
     const site = siteUnderPointer(event.clientX, event.clientY);
 
     if (!site) {
@@ -91,16 +112,29 @@ export function createMarkerPickingController(
     handlers.onHoverCursorChange(true);
   }
 
+  function onPointerLeave() {
+    isDown = false;
+    if (hoveredSiteId !== null) {
+      handlers.onHoverExit(hoveredSiteId);
+      hoveredSiteId = null;
+    }
+    handlers.onHoverCursorChange(false);
+  }
+
   return {
     attach: () => {
       dom.addEventListener('pointerdown', onPointerDown);
       dom.addEventListener('pointerup', onPointerUp);
+      dom.addEventListener('pointercancel', onPointerCancel);
       dom.addEventListener('pointermove', onPointerMove);
+      dom.addEventListener('pointerleave', onPointerLeave);
     },
     detach: () => {
       dom.removeEventListener('pointerdown', onPointerDown);
       dom.removeEventListener('pointerup', onPointerUp);
+      dom.removeEventListener('pointercancel', onPointerCancel);
       dom.removeEventListener('pointermove', onPointerMove);
+      dom.removeEventListener('pointerleave', onPointerLeave);
     },
   };
 }

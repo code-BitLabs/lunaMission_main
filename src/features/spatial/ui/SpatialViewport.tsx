@@ -29,7 +29,7 @@ export function SpatialViewport({
   onGlobeFallbackTo2D,
 }: SpatialViewportProps) {
   const { selectSite } = useScenarioCommands();
-  const { site: selectedSite, conditions, ephemeris } = useScenarioModel();
+  const { site: selectedSite, conditions, ephemeris, epochIsoUtc } = useScenarioModel();
 
   const handleSelectSite = useCallback((site: CandidateSite) => selectSite(site.id), [selectSite]);
 
@@ -63,6 +63,7 @@ export function SpatialViewport({
         onToggleVectors={() => onToggleLayer('vectors')}
         cameraPreset={preferences.cameraPreset}
         onCameraPresetChange={onCameraPresetChange}
+        epochIsoUtc={epochIsoUtc}
         hideHeader
         hideRibbon
       />

@@ -24,6 +24,8 @@ export const OBLIQUE_LOOK_TARGET: readonly [number, number, number] = [0, -1.2, 
 export const OBLIQUE_UP_VECTOR: readonly [number, number, number] = [0, 0.6, 0.8];
 export const SITE_CAMERA_ALTITUDE = 1.35;
 export const SITE_CAMERA_TILT = 0.35;
+export const INSPECTION_CAMERA_ALTITUDE = 0.085;
+export const INSPECTION_CAMERA_TILT = 0.035;
 
 export interface CameraPose {
   camPos: THREE.Vector3;
@@ -61,6 +63,22 @@ export function cameraPoseForPreset(preset: CameraPreset, site: CandidateSite): 
         .clone()
         .add(siteNormal.clone().multiplyScalar(SITE_CAMERA_ALTITUDE))
         .add(new THREE.Vector3(0, -SITE_CAMERA_TILT, SITE_CAMERA_TILT)),
+      lookTarget: sitePos.clone(),
+      upVector: new THREE.Vector3(0, 0, 1),
+    };
+  }
+  if (preset === 'inspection') {
+    const sitePos = latLonToVector3(
+      site.coordinates.latitudeDeg,
+      site.coordinates.longitudeDeg,
+      MOON_SCENE_RADIUS,
+    );
+    const siteNormal = sitePos.clone().normalize();
+    return {
+      camPos: sitePos
+        .clone()
+        .add(siteNormal.clone().multiplyScalar(INSPECTION_CAMERA_ALTITUDE))
+        .add(new THREE.Vector3(0, -INSPECTION_CAMERA_TILT, INSPECTION_CAMERA_TILT)),
       lookTarget: sitePos.clone(),
       upVector: new THREE.Vector3(0, 0, 1),
     };

@@ -9,7 +9,7 @@
  * carrying two names.
  */
 
-export type CameraPreset = 'nadir' | 'oblique' | 'site' | 'global';
+export type CameraPreset = 'nadir' | 'oblique' | 'site' | 'inspection' | 'global';
 
 export type SpatialLayer = 'grid' | 'shadowRegions' | 'craters' | 'vectors';
 

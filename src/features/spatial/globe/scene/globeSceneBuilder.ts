@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { CandidateSite } from '@/domain/sites/candidateSite';
-import { createGlobeScene, isWebGlAvailable, GlobeScene } from '@/features/spatial/globe/scene/globeScene';
+import {
+  createGlobeScene,
+  isWebGlAvailable,
+  GlobeScene,
+  MOON_SCENE_RADIUS,
+  isSoftwareGl,
+} from '@/features/spatial/globe/scene/globeScene';
 import { MoonSurface, createMoonSurface } from '@/features/spatial/globe/scene/globeSurfaceMaterial';
 import { createGraticuleGroup, createPolarFootprintGroup } from '@/features/spatial/globe/scene/globeGraticule';
 import { SiteMarker, applyMarkerHorizonOcclusion, createSiteMarkers } from '@/features/spatial/globe/scene/globeSiteMarkers';
@@ -11,6 +17,19 @@ import { createMarkerPickingController } from '@/features/spatial/globe/interact
 const FALLBACK_CONTAINER_WIDTH = 500;
 const FALLBACK_CONTAINER_HEIGHT = 450;
 
+export interface GlobeDiagnosticsMetrics {
+  fps: number;
+  frameTimeMs: number;
+  frameTimeP95Ms: number;
+  drawCalls: number;
+  triangles: number;
+  cameraDistance: number;
+  cameraTargetDistance: number;
+  cameraNear: number;
+  pixelRatio: number;
+  isSoftwareGl: boolean;
+}
+
 export interface GlobeSceneHandle {
   globe: GlobeScene;
   graticuleGroup: THREE.Group;
@@ -18,6 +37,7 @@ export interface GlobeSceneHandle {
   vectorsGroup: THREE.Group;
   markers: Map<string, SiteMarker>;
   transitioner: CameraTransitioner;
+  getDiagnostics?: () => GlobeDiagnosticsMetrics;
   dispose: () => void;
 }
 
@@ -98,9 +118,72 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
   globe.controls.addEventListener('start', handleControlsStart);
 
   let animationId = 0;
+  const frameTimes: number[] = [];
+  let lastFrameTimestamp = performance.now();
+  let lastStatsUpdate = performance.now();
+  let cachedMetrics: GlobeDiagnosticsMetrics = {
+    fps: 60,
+    frameTimeMs: 16.6,
+    frameTimeP95Ms: 16.6,
+    drawCalls: 0,
+    triangles: 0,
+    cameraDistance: 4.8,
+    cameraTargetDistance: 0,
+    cameraNear: 0.05,
+    pixelRatio: globe.renderer.getPixelRatio(),
+    isSoftwareGl,
+  };
+
   const animate = () => {
     animationId = requestAnimationFrame(animate);
+
+    const now = performance.now();
+    const dt = now - lastFrameTimestamp;
+    lastFrameTimestamp = now;
+    if (dt > 0 && dt < 200) {
+      frameTimes.push(dt);
+      if (frameTimes.length > 60) frameTimes.shift();
+    }
+
+    if (now - lastStatsUpdate > 250) {
+      lastStatsUpdate = now;
+      if (frameTimes.length > 0) {
+        const sorted = [...frameTimes].sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length * 0.5)];
+        const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? median;
+        const avgDt = frameTimes.reduce((sum, v) => sum + v, 0) / frameTimes.length;
+        cachedMetrics = {
+          fps: Math.round(1000 / (avgDt || 16.6)),
+          frameTimeMs: Math.round(median * 10) / 10,
+          frameTimeP95Ms: Math.round(p95 * 10) / 10,
+          drawCalls: globe.renderer.info.render.calls,
+          triangles: globe.renderer.info.render.triangles,
+          cameraDistance: Math.round(globe.camera.position.length() * 100) / 100,
+          cameraTargetDistance: Math.round(globe.camera.position.distanceTo(globe.controls.target) * 100) / 100,
+          cameraNear: globe.camera.near,
+          pixelRatio: globe.renderer.getPixelRatio(),
+          isSoftwareGl,
+        };
+      }
+    }
+
     transitioner.step(globe.camera, globe.controls);
+
+    // Anti-penetration collision guard: prevent camera from penetrating inside Moon sphere (radius 1.45)
+    const distToCenter = globe.camera.position.length();
+    const MIN_SAFE_ALTITUDE = 0.015;
+    if (distToCenter < MOON_SCENE_RADIUS + MIN_SAFE_ALTITUDE) {
+      globe.camera.position.setLength(MOON_SCENE_RADIUS + MIN_SAFE_ALTITUDE);
+    }
+
+    // Dynamic scale-aware near clipping plane adjustment
+    const distToTarget = globe.camera.position.distanceTo(globe.controls.target);
+    const targetNear = distToTarget < 0.20 ? 0.002 : distToTarget < 0.8 ? 0.01 : 0.05;
+    if (Math.abs(globe.camera.near - targetNear) > 0.001) {
+      globe.camera.near = targetNear;
+      globe.camera.updateProjectionMatrix();
+    }
+
     applyMarkerHorizonOcclusion(markers, globe.camera.position, occlusionScratch);
     globe.controls.update();
     globe.renderer.render(globe.scene, globe.camera);
@@ -126,6 +209,7 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
     vectorsGroup,
     markers,
     transitioner,
+    getDiagnostics: () => cachedMetrics,
     dispose: () => {
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();

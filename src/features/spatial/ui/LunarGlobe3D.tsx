@@ -17,6 +17,7 @@ import { GlobeControlsOverlay } from '@/features/spatial/globe/components/GlobeC
 import { GlobeHoverCard } from '@/features/spatial/globe/components/GlobeHoverCard';
 import { GlobeLegend } from '@/features/spatial/globe/components/GlobeLegend';
 import { GlobeCandidateRibbon } from '@/features/spatial/globe/components/GlobeCandidateRibbon';
+import { GlobeDiagnosticsOverlay } from '@/features/spatial/globe/components/GlobeDiagnosticsOverlay';
 import { useGlobeScene } from '@/features/spatial/globe/hooks/useGlobeScene';
 
 export interface LunarGlobe3DProps {
@@ -42,6 +43,9 @@ export interface LunarGlobe3DProps {
   /** Owned by the workspace so the toolbar and the globe's own buttons agree. */
   cameraPreset: CameraPreset;
   onCameraPresetChange: (preset: CameraPreset) => void;
+  /** Optional diagnostics toggle for development and standalone test routes */
+  showDiagnostics?: boolean;
+  epochIsoUtc?: string;
 }
 
 /**
@@ -68,6 +72,8 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
     cameraPreset,
     onCameraPresetChange,
     onSelectSite,
+    showDiagnostics = false,
+    epochIsoUtc,
   } = props;
 
   // Unknown elevation must never be presented as "0°" or as a clear line of sight.
@@ -77,7 +83,7 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
       ? '—'
       : `${earthElevationValue >= 0 ? '+' : ''}${earthElevationValue.toFixed(1)}° elev`;
 
-  const { containerRef, status, hoveredSite, applyCameraPreset } = useGlobeScene({
+  const { containerRef, status, hoveredSite, applyCameraPreset, getDiagnostics } = useGlobeScene({
     selectedSite,
     onSelectSite,
     subSolarLatDeg,
@@ -118,6 +124,13 @@ export function LunarGlobe3D(props: LunarGlobe3DProps) {
       {hoveredSite && <GlobeHoverCard site={hoveredSite} />}
 
       <GlobeLegend earthElevationDisplay={earthElevationDisplay} isCompact={hideRibbon} />
+
+      <GlobeDiagnosticsOverlay
+        getDiagnostics={getDiagnostics}
+        selectedSite={selectedSite}
+        epochIsoUtc={epochIsoUtc}
+        isVisible={showDiagnostics}
+      />
 
       {!hideRibbon && (
         <GlobeCandidateRibbon

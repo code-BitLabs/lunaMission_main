@@ -58,6 +58,16 @@ test('Camera presets: site preset centers directly on the selected candidate sit
   assert.ok(pose.camPos.length() > pose.lookTarget.length());
 });
 
+test('Camera presets: inspection preset provides close-range grazing view of candidate site', () => {
+  const pose = cameraPoseForPreset('inspection', testSite);
+  // lookTarget should point exactly to site position on Moon surface
+  assert.ok(pose.lookTarget.length() > 1.4 && pose.lookTarget.length() < 1.5, 'Target is on Moon surface');
+  // camPos distance should be close to site surface distance (within 0.15 units)
+  const distToTarget = pose.camPos.distanceTo(pose.lookTarget);
+  assert.ok(distToTarget < 0.15, `Inspection camera must be within 0.15 units of site, was ${distToTarget}`);
+  assert.ok(distToTarget > 0.05, `Inspection camera must maintain safe altitude > 0.05 units, was ${distToTarget}`);
+});
+
 test('Camera transitioner: cancel immediately halts in-flight transition', () => {
   const transitioner = createCameraTransitioner();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
