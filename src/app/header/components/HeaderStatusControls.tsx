@@ -37,12 +37,21 @@ export function HeaderStatusControls({ isDemoMode, onOpenProvenance, onOpenGuide
       )}
 
       <a
-        href="/scenario/3d-lab"
+        href="#/scenario/3d-lab"
+        onClick={(e) => {
+          e.preventDefault();
+          try {
+            window.history.pushState(null, '', '/scenario/3d-lab');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          } catch {
+            window.location.hash = '#/scenario/3d-lab';
+          }
+        }}
         aria-label="Open 3D Lab Test Route"
-        className="flex items-center gap-1 px-2 py-1 text-xs font-mono rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-border)] bg-[var(--lm-color-surface-raised)] text-[var(--lm-color-text-secondary)] hover:text-[var(--lm-color-selected-site)] hover:border-[var(--lm-color-selected-site)]/60 transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-medium rounded-[var(--lm-radius-xs)] border border-[var(--lm-color-selected-site)]/40 bg-[var(--lm-color-selected-site)]/10 text-[var(--lm-color-selected-site)] hover:bg-[var(--lm-color-selected-site)]/20 hover:border-[var(--lm-color-selected-site)] transition-colors cursor-pointer shadow-xs"
         title="Open Standalone 3D Scientific Lab"
       >
-        <span className="text-[var(--lm-color-selected-site)]">🔬 3D Lab</span>
+        <span>🔬 3D Lab</span>
       </a>
 
       <button

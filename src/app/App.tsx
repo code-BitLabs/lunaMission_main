@@ -35,7 +35,15 @@ export default function App() {
     setActiveTab('explore');
   }
 
-  if (currentPath.includes('/scenario/3d-lab')) {
+  const is3DLabActive =
+    currentPath.includes('/scenario/3d-lab') ||
+    currentPath.includes('3d-lab') ||
+    (typeof window !== 'undefined' &&
+      (window.location.pathname.includes('3d-lab') ||
+        window.location.hash.includes('3d-lab') ||
+        window.location.search.includes('3d-lab')));
+
+  if (is3DLabActive) {
     return <Scenario3DLab />;
   }
 

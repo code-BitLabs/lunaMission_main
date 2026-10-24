@@ -12,6 +12,7 @@ import { createGraticuleGroup, createPolarFootprintGroup } from '@/features/spat
 import { SiteMarker, applyMarkerHorizonOcclusion, createSiteMarkers } from '@/features/spatial/globe/scene/globeSiteMarkers';
 import { CameraTransitioner, createCameraTransitioner } from '@/features/spatial/globe/interaction/globeCameraPresets';
 import { createMarkerPickingController } from '@/features/spatial/globe/interaction/globePicking';
+import { createPolarTerrainFeatures } from '@/features/spatial/globe/scene/globePolarTerrain';
 
 /** Used if the container has not laid out yet; the ResizeObserver corrects it immediately. */
 const FALLBACK_CONTAINER_WIDTH = 500;
@@ -82,6 +83,9 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
 
   const footprintGroup = createPolarFootprintGroup();
   globeGroup.add(footprintGroup);
+
+  const polarTerrain = createPolarTerrainFeatures(input.initialSelectedSiteId);
+  globeGroup.add(polarTerrain.group);
 
   const graticuleGroup = createGraticuleGroup();
   globeGroup.add(graticuleGroup);
@@ -224,6 +228,7 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
     transitioner,
     setSelectedSiteId: (id: string) => {
       currentSelectedSiteId = id;
+      polarTerrain.updateLandingReticle(id);
     },
     setDisplayOptions: (opts: { showMarkers?: boolean; showLabels?: boolean; showTerrain?: boolean }) => {
       displayOptions = { ...displayOptions, ...opts };
@@ -243,6 +248,7 @@ export function buildGlobeScene(input: GlobeSceneBuildInput): GlobeSceneHandle |
       globe.controls.dispose();
       globe.renderer.dispose();
       surface.dispose();
+      polarTerrain.dispose();
     },
   };
 }
